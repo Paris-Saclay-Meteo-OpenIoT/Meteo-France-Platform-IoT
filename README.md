@@ -30,10 +30,10 @@ cp .env_template .env
 
 ```bash
 # Démarrer tous les services
-./launch.sh start
+./app.sh start
 
 # Arrêter les services
-./launch.sh stop
+./app.sh stop
 ```
 
 Le script va:
