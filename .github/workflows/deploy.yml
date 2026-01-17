@@ -1,10 +1,7 @@
 name: Deploy app
 
 on:
-  #push:
-  # branches:
-  #   - main
-  pull_request:
+  push:
     branches:
       - main
 
@@ -69,7 +66,7 @@ jobs:
 
   # Étape 3 : Déploiement sur EC2
   deploy:
-    needs: build-and-push
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Cloner le repo
