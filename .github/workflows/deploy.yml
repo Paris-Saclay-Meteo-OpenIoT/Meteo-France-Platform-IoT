@@ -2,8 +2,8 @@ name: Deploy app
 
 on:
   #push:
-   # branches:
-   #   - main
+  # branches:
+  #   - main
   pull_request:
     branches:
       - main
@@ -13,7 +13,6 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     permissions:
@@ -86,6 +85,6 @@ jobs:
             cd ~/Meteo-France-Platform-IoT
             git pull origin main
             docker login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
-            docker-compose pull
-            docker-compose up -d
+            docker compose pull
+            docker compose up -d
             docker system prune -f
