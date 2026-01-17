@@ -14,8 +14,13 @@
   <div id="dataDisplay">En attente de mises à jour...</div>
 
   <script>
+    // Déterminer l'URL du backend
+    const API_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : `http://${window.location.hostname}:5000`;
+
     // Initialisation du client Socket.IO avec les options de reconnexion
-    const socket = io('http://localhost:5000', {
+    const socket = io(API_BASE_URL, {
       transports: ['websocket'],
       reconnection: true,           // Active la reconnexion automatique
       reconnectionAttempts: 10,     // Nombre maximum de tentatives

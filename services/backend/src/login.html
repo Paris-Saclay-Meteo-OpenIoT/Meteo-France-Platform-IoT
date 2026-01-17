@@ -26,6 +26,11 @@
   <div id="result"></div>
 
   <script>
+    // Déterminer l'URL du backend
+    const API_BASE_URL = window.location.hostname === 'localhost' 
+      ? 'http://localhost:5000' 
+      : `http://${window.location.hostname}:5000`;
+
     document.getElementById('loginForm').addEventListener('submit', async function(event) {
       event.preventDefault();
       
@@ -33,7 +38,7 @@
       const password = document.getElementById('password').value;
       
       try {
-        const response = await fetch('http://localhost:5000/api/users/login', {
+        const response = await fetch(`${API_BASE_URL}/api/users/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

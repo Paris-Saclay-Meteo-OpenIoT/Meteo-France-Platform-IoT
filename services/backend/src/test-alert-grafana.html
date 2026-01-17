@@ -9,7 +9,12 @@
     <h1>Test Socket.IO</h1>
     <div id="alerts"></div>
     <script>
-      const socket = io('http://localhost:5000');
+      // Déterminer l'URL du backend
+      const API_BASE_URL = window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : `http://${window.location.hostname}:5000`;
+
+      const socket = io(API_BASE_URL);
       
       socket.on('connect', () => {
         console.log('Connecté avec Socket.IO, id:', socket.id);

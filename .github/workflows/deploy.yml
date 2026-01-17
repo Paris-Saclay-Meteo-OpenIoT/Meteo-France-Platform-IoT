@@ -21,6 +21,6 @@ jobs:
           script: |
             cd ~/Meteo-France-Platform-IoT
             git pull origin main
-            docker-compose build
-            docker-compose up -d
+            docker compose build
+            docker compose up -d
             docker system prune -f

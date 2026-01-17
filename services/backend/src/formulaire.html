@@ -61,8 +61,13 @@
       const password = document.getElementById('password').value;
 
       try {
+        // Déterminer l'URL du backend
+        const API_BASE_URL = window.location.hostname === 'localhost' 
+          ? 'http://localhost:5000' 
+          : `http://${window.location.hostname}:5000`;
+
         // Envoi de la requête POST au serveur
-        const response = await fetch('http://localhost:5000/api/users/register', {
+        const response = await fetch(`${API_BASE_URL}/api/users/register`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
