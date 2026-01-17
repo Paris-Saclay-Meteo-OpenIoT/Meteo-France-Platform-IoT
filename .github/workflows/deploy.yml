@@ -87,4 +87,3 @@ jobs:
             docker login -u ${{ github.actor }} -p ${{ secrets.GITHUB_TOKEN }} ghcr.io
             docker compose pull
             docker compose up -d
-            docker system prune -f
