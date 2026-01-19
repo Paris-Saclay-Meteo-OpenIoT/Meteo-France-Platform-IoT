@@ -5,28 +5,24 @@ networks:
     driver: bridge
 
 services:
-
   #-------------------------------------------------------
-  # Nginx 
+  # Nginx
   #-------------------------------------------------------
   nginx:
-    image: 'jc21/nginx-proxy-manager:latest'
+    image: "jc21/nginx-proxy-manager:latest"
     container_name: ter_nginx_proxy_manager
     ports:
       # ports <host-port>:<container-port>
-      - '80:80' # Public HTTP Port
-      - '443:443' # Public HTTPS Port
-      - '81:81' # Admin Web Port
+      - "80:80" # Public HTTP Port
+      - "443:443" # Public HTTPS Port
+      - "81:81" # Admin Web Port
     volumes:
       - npm_data:/data #create vol in the container at /data path
       - npm_letsencrypt:/etc/letsencrypt
-    
+
     networks:
       - pipeline-net
     restart: unless-stopped
-
-    
-
 
   #-------------------------------------------------------
   # Kafka & Zookeeper
@@ -63,7 +59,14 @@ services:
       - ter_kafka_data:/var/lib/kafka
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-topics.sh",
+          "--list",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -84,9 +87,16 @@ services:
     environment:
       - KAFKA_ZOOKEEPER_CONNECT=ter_zookeeper:2181
     volumes:
-      - ./infrastructure/kafka:/init_scripts  
+      - ./infrastructure/kafka:/init_scripts
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "ter_kafka:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-topics.sh",
+          "--list",
+          "--bootstrap-server",
+          "ter_kafka:9092",
+        ]
       interval: 5s
       timeout: 10s
       retries: 3
@@ -116,7 +126,7 @@ services:
     image: mongo:5.0
     container_name: ter_mongodb
     ports:
-      - "27017:27017" 
+      - "27017:27017"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
@@ -139,7 +149,14 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--notify-keyspace-events", "KEA"]
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+        "--notify-keyspace-events",
+        "KEA",
+      ]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
@@ -167,7 +184,8 @@ services:
     networks:
       - pipeline-net
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      test:
+        ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -237,21 +255,41 @@ services:
   # Consumers
   #-------------------------------------------------------
 
-  mongo_consumer:
+  postgres_consumer:
     build:
       context: ./services/mongo_consumer
-    container_name: ter_mongo_consumer
+    container_name: ter_postgres_consumer
     volumes:
       - ./services/mongo_consumer:/app
     environment:
       - KAFKA_BROKER=${KAFKA_BROKER}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=ter_postgres
+      - POSTGRES_PORT=5432
     depends_on:
       - kafka
-      - mongodb
+      - postgres
     networks:
       - pipeline-net
+    restart: unless-stopped
+
+  # mongo_consumer:
+  #  build:
+  #    context: ./services/mongo_consumer
+  #  container_name: ter_mongo_consumer
+  #  volumes:
+  #    - ./services/mongo_consumer:/app
+  #  environment:
+  #    - KAFKA_BROKER=${KAFKA_BROKER}
+  #    - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+  #    - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+  #  depends_on:
+  #    - kafka
+  #    - mongodb
+  #  networks:
+  #    - pipeline-net
 
   redis_consumer:
     build:
@@ -273,7 +311,6 @@ services:
         condition: service_healthy
     networks:
       - pipeline-net
-
 
   #-------------------------------------------------------
   # GRAFANA & its Datasources
@@ -356,7 +393,7 @@ services:
     environment:
       KAFKA_SERVER: ter_kafka:9092
     restart: unless-stopped
-  
+
   prometheus-redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: ter_prometheus-redis-exporter
@@ -365,15 +402,15 @@ services:
     networks:
       - pipeline-net
     environment:
-      REDIS_ADDR: "ter_redis:6379" 
-      REDIS_PASSWORD: "${REDIS_PASSWORD}" 
+      REDIS_ADDR: "ter_redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
     restart: unless-stopped
 
   cadvisor:
     image: google/cadvisor:latest
     container_name: ter_cadvisor
     ports:
-      - "8090:8080" 
+      - "8090:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
@@ -386,7 +423,7 @@ services:
   # AI
   #--------------------------------------------------------
   api-export-csv:
-    build: ./services/api_export   
+    build: ./services/api_export
     container_name: ter_api_export_csv
     ports:
       - "8000:8000"
@@ -412,8 +449,8 @@ services:
       context: ./services/backend
     container_name: ter_backend
     ports:
-      - "5000:5000" 
-    
+      - "5000:5000"
+
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - MONGO_URI=mongodb://admin:password@ter_mongodb:27017/weatherDB?authSource=admin
@@ -430,7 +467,7 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
     volumes:
       - ./services/backend:/usr/src/app
-      
+
     depends_on:
       mongodb:
         condition: service_healthy
@@ -448,7 +485,7 @@ services:
       context: ./services/frontend
     container_name: ter_frontend
     ports:
-      - "3001:3001" 
+      - "3001:3001"
     environment:
       - ENV=${ENV}
       - NEXT_PUBLIC_API_URL=${ENVIRONMENT_URL}
@@ -473,4 +510,3 @@ volumes:
   ter_prometheus_data:
   ter_grafana_data:
   ter_postgres_data:
-
