@@ -1,5 +1,5 @@
 export default function APIPage() {
-    const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || "http://localhost:3000";
+    const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000`;
     return (
       <div>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">

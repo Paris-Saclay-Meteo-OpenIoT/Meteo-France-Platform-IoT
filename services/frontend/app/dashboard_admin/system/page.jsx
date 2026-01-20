@@ -8,7 +8,7 @@ export default function SystemPage() {
   const [clickDisabled, setClickDisabled] = useState(false);
 
   // Dashboard URLs
-  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || "http://localhost:3000";
+  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || `${typeof window !== 'undefined' ? window.location.protocol : 'http:'}//${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3000`;
   const dashboards = {
     node: `${grafanaUrl}/d/rYdddlPWk/node-exporter-dashboard?orgId=1&kiosk=1&theme=light`,
     docker: `${grafanaUrl}/d/pMEd7m0Mz/cadvisor-dashboard?orgId=1&kiosk=1&theme=light`,

@@ -10,9 +10,7 @@
     <div id="alerts"></div>
     <script>
       // Déterminer l'URL du backend
-      const API_BASE_URL = window.location.hostname === 'localhost' 
-        ? 'http://localhost:5000' 
-        : `http://${window.location.hostname}:5000`;
+      const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}`;
 
       const socket = io(API_BASE_URL);
       

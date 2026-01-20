@@ -62,9 +62,7 @@
 
       try {
         // Déterminer l'URL du backend
-        const API_BASE_URL = window.location.hostname === 'localhost' 
-          ? 'http://localhost:5000' 
-          : `http://${window.location.hostname}:5000`;
+        const API_BASE_URL = `${window.location.protocol}//${window.location.hostname}${window.location.port ? ':' + window.location.port : ''}`;
 
         // Envoi de la requête POST au serveur
         const response = await fetch(`${API_BASE_URL}/api/users/register`, {
