@@ -430,6 +430,7 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
     volumes:
       - ./services/backend:/usr/src/app
+      - /usr/src/app/node_modules
       
     depends_on:
       mongodb:
