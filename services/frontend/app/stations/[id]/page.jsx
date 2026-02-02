@@ -446,7 +446,6 @@ if (ctxWind && historyData.some((data) => data.ff)) {
     );
   }
   
-  // Ici, tu es sûr que stationData est non nul, donc tu peux faire les calculs 👇
   const temperatureC =
     stationData.t !== undefined && stationData.t !== null
       ? (stationData.t - 273.15).toFixed(1)
