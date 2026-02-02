@@ -474,7 +474,7 @@ if (ctxWind && historyData.some((data) => data.ff)) {
     
         <p className="text-lg font-semibold mb-4">📅 Dernière mesure : {lastDataTime}</p>
     
-        <div className="grid grid-cols-1 gap-6 mt-4">
+        <div className="grid grid-cols-1 gap-6 mt-4 text-gray-600">
           {/* Informations météo */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Température */}
