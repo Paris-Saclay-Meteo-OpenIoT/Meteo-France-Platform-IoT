@@ -99,7 +99,7 @@ def extract_notable_alerts(data):
             for text_item in item.get("text_items", []):
                 hazard_name = text_item.get("hazard_name", "Inconnu")  # Get the hazard type
                 for term in text_item.get("term_items", []):
-                    if term.get("risk_name") in ["Orange", "Rouge"]:
+                    if term.get("risk_name") in ["Vert", "Jaune","Orange", "Rouge"]:
                         # Combine bold text and regular text into a single description
                         description = " ".join(
                             [text.get("bold_text", "") + " " + " ".join(text.get("text", []))
