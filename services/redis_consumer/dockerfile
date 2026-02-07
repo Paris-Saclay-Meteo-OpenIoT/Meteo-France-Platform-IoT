@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir kafka-python redis
 COPY . .
 
 # Set the default command
-CMD ["python", "redis_consumer.py"]
+CMD ["python", "-u", "redis_consumer.py"]

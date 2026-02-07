@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5000
 
 # Commande de démarrage
-CMD ["npx", "nodemon", "src/app.js"]
+CMD ["npm", "start"]
