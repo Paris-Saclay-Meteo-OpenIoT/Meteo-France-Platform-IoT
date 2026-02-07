@@ -1,26 +1,119 @@
-name: Deploy app
+name: Deploy to Production
 
 on:
-  pull_request:
-    branches:
-      - main
+  push:
+    tags:
+      - 'v*' 
 
 jobs:
-  deploy:
+  terraform:
+    name: Terraform Plan & Apply
     runs-on: ubuntu-latest
+    outputs:
+      tf_outputs: ${{ steps.tf_output.outputs.result }}
     steps:
-      - name: Cloner le repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Déploiement sur EC2 AWS avec Docker Compose
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        working-directory: ./infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ./infrastructure/terraform
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./infrastructure/terraform
+        run: terraform apply -input=false tfplan
+
+      - name: Get Terraform Outputs
+        id: tf_output
+        working-directory: ./infrastructure/terraform
+        run: |
+          SERVER_IP=$(terraform output -raw ec2_public_ip)
+          echo "result=$SERVER_IP" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy Application
+    runs-on: ubuntu-latest
+    needs: terraform
+    outputs:
+      tag_name: ${{ steps.create_tag.outputs.tag_name }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history for tag creation
+
+      - name: Deploy with Docker Compose
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
+          host: ${{ needs.terraform.outputs.tf_outputs }}
+          username: ubuntu
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd ~/Meteo-France-Platform-IoT
-            git pull origin main
-            docker compose build
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            docker compose down || true
+            docker compose build --no-cache
             docker compose up -d
             docker system prune -f
+            echo "Application deployed successfully"
+
+      - name: Create Production Tag
+        id: create_tag
+        run: |
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
+          # Parse version
+          MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | sed 's/v//')
+          MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+          PATCH=$(echo $LATEST_TAG | cut -d. -f3)
+          
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          # Create annotated tag with deployment info
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$NEW_TAG" -m "Production deployment: $NEW_TAG
+          
+          Deployed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+          Actor: ${{ github.actor }}"
+          
+          # Push tag to remote
+          git push origin "$NEW_TAG"
+          
+          echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Successfully created and pushed tag: $NEW_TAG"
+
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+    steps:
+      - name: Display Deployment Summary
+        run: |
+          echo "Deployment Successful!"
+          echo "Production Tag: ${{ needs.deploy.outputs.tag_name }}"
+          echo "View tag: https://github.com/${{ github.repository }}/releases/tag/${{ needs.deploy.outputs.tag_name }}"
