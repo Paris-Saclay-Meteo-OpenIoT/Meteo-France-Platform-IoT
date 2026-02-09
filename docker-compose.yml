@@ -1,5 +1,3 @@
-version: "3.8"
-
 networks:
   pipeline-net:
     driver: bridge
@@ -97,8 +95,9 @@ services:
     container_name: ter_kafka-ui
     image: provectuslabs/kafka-ui:latest
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
+      SERVER_PORT: 8090
       KAFKA_CLUSTERS_0_NAME: "weather-cluster"
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "ter_kafka:9092"
     depends_on:
@@ -234,45 +233,91 @@ services:
       - pipeline-net
 
   #-------------------------------------------------------
-  # Consumers
+  # Consumers ==> ETL
   #-------------------------------------------------------
 
-  mongo_consumer:
-    build:
-      context: ./services/mongo_consumer
-    container_name: ter_mongo_consumer
-    volumes:
-      - ./services/mongo_consumer:/app
+  # lien https obligatoire : https://localhost:8443/
+  nifi:
+    image: apache/nifi:2.0.0
+    container_name: ter_nifi
+    ports:
+      - "8443:8443"
     environment:
-      - KAFKA_BROKER=${KAFKA_BROKER}
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+      - NIFI_WEB_HTTPS_PORT=8443
+      - NIFI_WEB_HTTPS_HOST=0.0.0.0
+      - SINGLE_USER_CREDENTIALS_USERNAME=admin
+      - SINGLE_USER_CREDENTIALS_PASSWORD=MeteoFrance2026!
+      - NIFI_SENSITIVE_PROPS_KEY=ter-nifi-secret-key-very-long
+
+    entrypoint:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        echo "=== 1. PREPARATION ==="
+        
+        echo "Telechargement Driver Postgres..."
+        wget -q -O /opt/nifi/nifi-current/lib/postgresql.jar https://jdbc.postgresql.org/download/postgresql-42.7.2.jar || echo "Pas d'internet, assure-toi d'avoir le jar !"
+
+        echo "=== 2. PROVISIONING FLUX ==="
+        cp -v /tmp/flow_init.json.gz /opt/nifi/nifi-current/conf/flow.json.gz
+        
+        echo "=== 3. DEMARRAGE ==="
+        ../scripts/start.sh
+
+    volumes:
+      - nifi_conf:/opt/nifi/nifi-current/conf
+      - nifi_database:/opt/nifi/nifi-current/database_repository
+      - nifi_flowfile:/opt/nifi/nifi-current/flowfile_repository
+      - nifi_content:/opt/nifi/nifi-current/content_repository
+      - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
+      - nifi_state:/opt/nifi/nifi-current/state
+      - nifi_logs:/opt/nifi/nifi-current/logs
+      # Golden Copy
+      - ./infrastructure/nifi/flow/flow_gold.json.gz:/tmp/flow_init.json.gz:ro
+      
     depends_on:
       - kafka
-      - mongodb
+    restart: unless-stopped
     networks:
       - pipeline-net
 
-  redis_consumer:
-    build:
-      context: ./services/redis_consumer
-    container_name: ter_redis_consumer
-    volumes:
-      - ./services/redis_consumer:/app
-      - ./logs/redis:/app/logs
-    environment:
-      - REDIS_HOST=ter_redis
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - REDIS_PORT=6379
-      - KAFKA_BROKER=${KAFKA_BROKER}
-      - KAFKA_TOPICS=weather-real-time,weather-alerts
-    depends_on:
-      kafka-topic-init:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    networks:
-      - pipeline-net
+  # mongo_consumer:
+  #   build:
+  #     context: ./services/mongo_consumer
+  #   container_name: ter_mongo_consumer
+  #   volumes:
+  #     - ./services/mongo_consumer:/app
+  #   environment:
+  #     - KAFKA_BROKER=${KAFKA_BROKER}
+  #     - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+  #     - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+  #   depends_on:
+  #     - kafka
+  #     - mongodb
+  #   networks:
+  #     - pipeline-net
+
+  # redis_consumer:
+  #   build:
+  #     context: ./services/redis_consumer
+  #   container_name: ter_redis_consumer
+  #   volumes:
+  #     - ./services/redis_consumer:/app
+  #     - ./logs/redis:/app/logs
+  #   environment:
+  #     - REDIS_HOST=ter_redis
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #     - REDIS_PORT=6379
+  #     - KAFKA_BROKER=${KAFKA_BROKER}
+  #     - KAFKA_TOPICS=weather-real-time,weather-alerts
+  #   depends_on:
+  #     kafka-topic-init:
+  #       condition: service_completed_successfully
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - pipeline-net
 
 
   #-------------------------------------------------------
@@ -370,16 +415,20 @@ services:
     restart: unless-stopped
 
   cadvisor:
-    image: google/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.47.2
     container_name: ter_cadvisor
-    ports:
-      - "8090:8080" 
+    privileged: true
+    devices:
+      - /dev/kmsg
     volumes:
       - /:/rootfs:ro
-      - /var/run:/var/run:ro
+      - /var/run:/var/run:rw
       - /sys:/sys:ro
-    restart: always
-    privileged: true
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
     networks:
       - pipeline-net
   #--------------------------------------------------------
@@ -473,4 +522,12 @@ volumes:
   ter_prometheus_data:
   ter_grafana_data:
   ter_postgres_data:
+  
+  nifi_conf:
+  nifi_database:
+  nifi_flowfile:
+  nifi_content:
+  nifi_provenance:
+  nifi_state:
+  nifi_logs:
 

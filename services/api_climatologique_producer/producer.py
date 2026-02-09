@@ -321,6 +321,8 @@ async def process_batch(batch, start_date, end_date, batch_index):
     
     logging.info(f"=== Début du traitement batch {batch_index+1} ===")
     
+    stations_metadata = {st["station_id"]: st for st in batch}
+
     station_cmd_ids = {}
     sem = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 
@@ -351,7 +353,82 @@ async def process_batch(batch, start_date, end_date, batch_index):
                 await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
                 dict_data, status = await fetch_file_for_station(cmd_id)
                 if status == "done":
-                    # Enrich data with station_id
+                    # Enrich data with station_id and lat/lon/nom
+                    meta = stations_metadata.get(station_id, {})
+                    
+                    enriched = {
+                        "station_id": station_id,
+                        "lat": meta.get("lat"), 
+                        "lon": meta.get("lon"), 
+                        "nom": meta.get("nom"), 
+                        "rows": dict_data
+                    }
+                    # -----------------------------------------------------
+                    
+                    producer.send(TOPIC_NAME, key=station_id, value=enriched)
+                    logging.info(f"[Station {station_id}] Données publiées avec LAT/LON => commande={cmd_id}")
+                    station_cmd_ids[station_id] = None
+
+                elif status == "pending":
+                    pass  # Retry next passage
+                else:
+                    station_cmd_ids[station_id] = None # Error => abandon
+
+            tasks.append(asyncio.create_task(do_fetch()))
+
+        if not tasks:
+            break # No more pending
+
+        await asyncio.gather(*tasks)
+        # Cleaning
+        station_cmd_ids = {sid: cid for sid, cid in station_cmd_ids.items() if cid is not None}
+
+        if station_cmd_ids:
+            logging.info(f"Il reste {len(station_cmd_ids)} commandes pending => on attend 60s.")
+            await asyncio.sleep(60)
+        else:
+            break
+
+    logging.info(f"=== Fin du traitement batch {batch_index+1} ===")
+    # Metrics
+    elapsed_batch = time.time() - batch_start_time
+    BATCH_DURATION.labels(batch_index=str(batch_index)).observe(elapsed_batch)
+    '''  Co-routine to process a batch of stations concurrently. '''
+    batch_start_time = time.time() # for metrics
+    
+    logging.info(f"=== Début du traitement batch {batch_index+1} ===")
+    
+    station_cmd_ids = {}
+    sem = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
+
+    async def create_one_station(station):
+        s_id = station["station_id"]
+        await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+        cmd_id, ok = await create_command_for_station(s_id, start_date, end_date)
+        if ok and cmd_id:
+            station_cmd_ids[s_id] = cmd_id
+        else:
+            logging.info(f"[Station {s_id}] Échec => pas de récupération.")
+    
+    # 1) Creation of commands for each station  
+    tasks = [asyncio.create_task(create_one_station(st)) for st in batch]
+    await asyncio.gather(*tasks)
+    
+    # 2) Multiple passes to fetch files for each station
+    max_passes = 5
+    for pass_index in range(1, max_passes+1):
+        logging.info(f"=== Passe récupération n°{pass_index}/{max_passes} ===")
+        tasks = []
+        
+        for s_id, c_id in station_cmd_ids.items():
+            if c_id is None:
+                continue # already done or failed
+
+            async def do_fetch(station_id=s_id, cmd_id=c_id):
+                await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+                dict_data, status = await fetch_file_for_station(cmd_id)
+                if status == "done":
+                    # Enrich data with station_id and lat
                     enriched = {"station_id": station_id, "rows": dict_data}
                     producer.send(TOPIC_NAME, key=station_id, value=enriched)
                     logging.info(f"[Station {station_id}] Données publiées => commande={cmd_id}")
