@@ -437,23 +437,25 @@ services:
   # AI
   #--------------------------------------------------------
   api-export-csv:
-    build: ./services/api_export   
-    container_name: ter_api_export_csv
-    ports:
-      - "8000:8000"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-    depends_on:
-      - mongodb
-    networks:
-      - pipeline-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/export-csv"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-
+      build: ./services/api_export   
+      container_name: ter_api_export_csv
+      ports:
+        - "8000:8000"
+      environment:
+        - POSTGRES_USER=my_user       
+        - POSTGRES_PASSWORD=my_password
+        - POSTGRES_DB=my_database
+        - POSTGRES_HOST=ter_postgres  
+        - POSTGRES_PORT=5432
+      depends_on:
+        - postgres  
+      networks:
+        - pipeline-net
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+        interval: 30s 
+        timeout: 5s
+        retries: 3
   #-------------------------------------------------------
   # Client web
   #-------------------------------------------------------

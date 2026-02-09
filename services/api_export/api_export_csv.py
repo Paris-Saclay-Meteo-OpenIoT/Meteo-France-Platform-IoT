@@ -1,29 +1,51 @@
 from fastapi import FastAPI, Response
-import csv, io, logging, os
-from pymongo import MongoClient
+import csv
+import io
+import logging
+import os
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 app = FastAPI()
-# Exposed endpoint : http://localhost:8000/export-csv
+
 
 # Logging
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
-# Mongo Configuration
-MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME")
-MONGO_PASS = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
-MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASS}@ter_mongodb:27017/"
-client = MongoClient(MONGO_URI)
-db = client["weatherDB"]
-collection_ai = db["weatherData_AI"]
+# Postgres Configuration
+PG_USER = os.getenv("POSTGRES_USER", "my_user")
+PG_PASS = os.getenv("POSTGRES_PASSWORD", "my_password")
+PG_DB = os.getenv("POSTGRES_DB", "my_database")
+PG_HOST = os.getenv("POSTGRES_HOST", "ter_postgres") 
+PG_PORT = os.getenv("POSTGRES_PORT", "5432")
 
-# Mappining dict from API to expected CSV
+# Exposed endpoint : http://localhost:8000/health
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+def get_db_connection():
+    try:
+        conn = psycopg2.connect(
+            user=PG_USER,
+            password=PG_PASS,
+            dbname=PG_DB,
+            host=PG_HOST,
+            port=PG_PORT
+        )
+        return conn
+    except Exception as e:
+        logger.error(f"Erreur de connexion DB: {e}")
+        return None
+
+# Mapping dict: CSV Header -> Postgres Column Name
 mapping = {
-    "NUM_POSTE": "POSTE",        # Pour NUM_POSTE, on utilise le champ "POSTE"
-    "AAAAMMJJHH": "DATE"         # Pour AAAAMMJJHH, on utilise le champ "DATE"
+    "NUM_POSTE": "station_id",   
+    "AAAAMMJJHH": "formatted_date" 
 }
 
-# Static values from Ajaccio station
+# Static values 
 defaults = {
     "NOM_USUEL": "AJACCIO",
     "LAT": "41.918",
@@ -31,7 +53,7 @@ defaults = {
     "ALTI": "5"
 }
 
-# Header for AI processing
+# The Header Line (Météo France Standard)
 header_line = (
     "NUM_POSTE;NOM_USUEL;LAT;LON;ALTI;AAAAMMJJHH;RR1;QRR1;DRR1;QDRR1;"
     "FF;QFF;DD;QDD;FXY;QFXY;DXY;QDXY;HXY;QHXY;FXI;QFXI;DXI;QDXI;"
@@ -54,58 +76,72 @@ header_line = (
 )
 headers = header_line.split(";")
 
+# Exposed endpoint : http://localhost:8000/export-csv
 @app.get("/export-csv")
 def export_csv():
-    documents = list(collection_ai.find())
-    logger.info("Documents récupérés: %d", len(documents))
-    if not documents:
-        return Response(content="Aucune donnée trouvée", media_type="text/plain")
-    
-    output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=headers, delimiter=';')
-    writer.writeheader()
-    
-    # For each documents, check if "rows" exists
-    for doc in documents:
-        if "rows" in doc and isinstance(doc["rows"], list):
-            # Parse each document in "rows"
-            for data in doc["rows"]:
-                row = {}
-                for h in headers:
-                    if h in mapping:
-                        v = data.get(mapping[h], "")
-                        # Convert float to int for specific headers
-                        if h in ("NUM_POSTE", "AAAAMMJJHH") and isinstance(v, (float, int)):
-                            v = str(int(v))
-                        row[h] = v
-                    elif h in defaults:
-                        row[h] = data.get(h, defaults[h])
-                    else:
-                        row[h] = data.get(h, "")
-                logger.info("Row générée: %s", row)
-                writer.writerow(row)
-        else:
-            # If "rows" does not exist, process the document directly
-            row = {}
+    conn = get_db_connection()
+    if not conn:
+        return Response(content="Erreur de connexion à la base de données", status_code=500)
+
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # SQL Query:
+        query = """
+            SELECT 
+                TO_CHAR(reference_time, 'YYYYMMDDHH24') as formatted_date,
+                * FROM weather_measurements
+            ORDER BY reference_time DESC
+        """
+        
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        logger.info("Lignes récupérées depuis Postgres: %d", len(rows))
+        
+        if not rows:
+            return Response(content="Aucune donnée trouvée", media_type="text/plain")
+
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=headers, delimiter=';')
+        writer.writeheader()
+
+        for db_row in rows:
+            csv_row = {}
             for h in headers:
+                # 1. Check Specific Mapping (NUM_POSTE, AAAAMMJJHH)
                 if h in mapping:
-                    v = doc.get(mapping[h], "")
-                    if h == "AAAAMMJJHH" and isinstance(v, (float, int)):
-                        v = str(int(v))
-                    row[h] = v
+                    val = db_row.get(mapping[h])
+                    csv_row[h] = str(val) if val is not None else ""
+                
+                # 2. Check Direct Mapping (e.g., CSV 'RR1' -> DB 'rr1')
+                elif h.lower() in db_row:
+                    val = db_row.get(h.lower())
+                    csv_row[h] = str(val) if val is not None else ""
+                
+                # 3. Check Defaults (LAT, LON, ALTI...)
                 elif h in defaults:
-                    row[h] = doc.get(h, defaults[h])
+                    csv_row[h] = defaults[h]
+                
+                # 4. Empty otherwise
                 else:
-                    row[h] = doc.get(h, "")
-            logger.info("Row générée (document direct): %s", row)
-            writer.writerow(row)
+                    csv_row[h] = ""
+            
+            writer.writerow(csv_row)
+
+        csv_content = output.getvalue()
+        output.close()
+        
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=weatherData_AI.csv"}
+        )
+
+    except Exception as e:
+        logger.error(f"Erreur lors de l'export: {e}")
+        return Response(content=f"Erreur interne: {str(e)}", status_code=500)
     
-    csv_content = output.getvalue()
-    output.close()
-    
-    # Create a downloadable CSV response
-    return Response(
-        content=csv_content,
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=weatherData_AI.csv"}
-    )
+    finally:
+        if conn:
+            conn.close()
