@@ -453,6 +453,7 @@ services:
     environment:
       - ENV=${ENV}
       - NEXT_PUBLIC_API_URL=${ENVIRONMENT_URL}
+      - NEXT_PUBLIC_GRAFANA_URL=${NEXT_PUBLIC_GRAFANA_URL}
       - PORT=3001
     volumes:
       - ./services/frontend:/usr/src/app
