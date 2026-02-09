@@ -35,7 +35,7 @@ const PORT = process.env.PORT || 5000;
 // Middleware pour gérer CORS : ici, on autorise toutes les origines
 app.use(
   cors({
-    origin: "http://localhost:3001",
+    origin: "*",
     credentials: true,
   }),
 );

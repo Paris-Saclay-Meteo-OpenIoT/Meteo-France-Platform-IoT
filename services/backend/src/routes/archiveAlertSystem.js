@@ -7,7 +7,13 @@ router.post("/", async (req, res) => {
 
   try {
     // On cherche l'alerte dans la table unique
-    const findQuery = "SELECT * FROM system_alerts WHERE alert_key = $1";
+    const findQuery = `
+      SELECT * FROM system_alerts 
+      WHERE alert_key = $1 
+      ORDER BY received_at DESC 
+      LIMIT 1
+    `;
+
     const { rows } = await pool.query(findQuery, [key]);
 
     if (rows.length === 0) {
@@ -16,16 +22,16 @@ router.post("/", async (req, res) => {
 
     const alert = rows[0];
 
-    // Vérification : On ne peut archiver que si c'est résolu ou à vérifier
+    // Vérification : On regarde si CETTE dernière alerte est bien résolue
     if (alert.status !== "resolved" && alert.status !== "a_verifier") {
-      return res
-        .status(400)
-        .json({
-          message: "L'alerte n'est pas résolue et ne peut pas être archivée",
-        });
+      return res.status(400).json({
+        message:
+          "La dernière alerte reçue n'est pas résolue, impossible d'archiver.",
+        currentState: alert.status,
+      });
     }
 
-    // Action : On met simplement à jour le statut
+    // Action : On archive TOUTES les lignes de cette clé ou seulement la dernière
     const updateQuery = `
       UPDATE system_alerts 
       SET status = 'archived' 

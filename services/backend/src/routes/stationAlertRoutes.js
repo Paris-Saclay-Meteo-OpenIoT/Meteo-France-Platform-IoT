@@ -66,20 +66,45 @@ router.get("/history/day/:stationId/:date", async (req, res) => {
   }
 });
 
-// route pour récupérer une station par son identifiant
-router.get("/:stationId", async (req, res) => {
+// Route pour rechercher une station par son NOM et récupérer ses données météo
+// Exemple : /stations/search/data/Ajaccio
+router.get("/city/:name", async (req, res) => {
   try {
-    const { stationId } = req.params;
+    const cityName = req.params.name;
 
-    const query = "SELECT * FROM stations WHERE station_id = $1";
-    const { rows } = await pool.query(query, [stationId]);
+    // 1. La requête SQL Magique
+    // - ILIKE : Permet de chercher insensible à la casse (Ajaccio = AJACCIO)
+    // - Les % : Permettent de trouver "AJACCIO-MILELLI" en tapant juste "Ajaccio"
+    // - JOIN : On fusionne les infos de la station ET ses mesures
+    const query = `
+      SELECT 
+        s.station_id, s.name, s.lat, s.lon, -- Infos Station
+        w.reference_time, w.t, w.rr_per, w.ff, w.u -- Infos Météo
+      FROM stations s
+      LEFT JOIN weather_measurements w ON s.station_id = w.station_id
+      WHERE s.name ILIKE $1
+      ORDER BY w.reference_time DESC
+      LIMIT 500; 
+    `;
+
+    // On ajoute les % pour dire "qui contient ce mot"
+    const values = [`%${cityName}%`];
+
+    const { rows } = await pool.query(query, values);
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: "Station non trouvée" });
+      return res.status(404).json({
+        error: `Aucune donnée trouvée pour une station contenant '${cityName}'`,
+      });
     }
-    res.json(rows[0]);
+
+    // Petit bonus : On renvoie aussi le nombre de résultats trouvés
+    res.json({
+      count: rows.length,
+      data: rows,
+    });
   } catch (error) {
-    console.error("Erreur SQL station ID:", error);
+    console.error("Erreur recherche par nom:", error);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });
@@ -131,6 +156,24 @@ router.get("/", async (req, res) => {
     res.json(rows);
   } catch (error) {
     console.error("Erreur SQL all stations:", error);
+    res.status(500).json({ error: "Erreur serveur" });
+  }
+});
+
+// route pour récupérer une station par son identifiant
+router.get("/:stationId", async (req, res) => {
+  try {
+    const { stationId } = req.params;
+
+    const query = "SELECT * FROM stations WHERE station_id = $1";
+    const { rows } = await pool.query(query, [stationId]);
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Station non trouvée" });
+    }
+    res.json(rows[0]);
+  } catch (error) {
+    console.error("Erreur SQL station ID:", error);
     res.status(500).json({ error: "Erreur serveur" });
   }
 });

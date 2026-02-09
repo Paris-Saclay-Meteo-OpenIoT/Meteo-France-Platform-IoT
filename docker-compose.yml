@@ -101,7 +101,8 @@ services:
       timeout: 10s
       retries: 3
     restart: "no"
-    entrypoint: ["/bin/sh", "-c", "sh /init_scripts/init_kafka_topics.sh"]
+    entrypoint:
+      ["/bin/sh", "-c", "sh /init_scripts/init_kafka_topics.sh || true"]
 
   kafka-ui:
     container_name: ter_kafka-ui
@@ -146,6 +147,7 @@ services:
   redis:
     image: redis:latest
     container_name: ter_redis
+    user: root
     ports:
       - "6379:6379"
     restart: unless-stopped
@@ -162,9 +164,9 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
-    #  depends_on:
-    #    kafka-topic-init:
-    #      condition: service_completed_successfully
+    #depends_on:
+    #kafka-topic-init:
+    #condition: service_completed_successfully
     networks:
       - pipeline-net
 
@@ -205,8 +207,8 @@ services:
       - KAFKA_BROKER=${KAFKA_BROKER}
       - API_TOKEN=${API_TOKEN_OBS}
     depends_on:
-      #    kafka-topic-init:
-      #      condition: service_completed_successfully
+      kafka-topic-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -225,9 +227,9 @@ services:
     environment:
       - KAFKA_BROKER=${KAFKA_BROKER}
       - API_TOKEN=${API_TOKEN_CLIMA}
-    #depends_on:
-    #    kafka-topic-init:
-    #      condition: service_completed_successfully
+    depends_on:
+      kafka-topic-init:
+        condition: service_completed_successfully
     #    mongodb:
     #      condition: service_healthy
     networks:
@@ -244,8 +246,8 @@ services:
       - KAFKA_BROKER=${KAFKA_BROKER}
       - API_TOKEN=${API_TOKEN_VIGILANCE}
     depends_on:
-      #    kafka-topic-init:
-      #      condition: service_completed_successfully
+      kafka-topic-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -305,8 +307,8 @@ services:
       - KAFKA_BROKER=${KAFKA_BROKER}
       - KAFKA_TOPICS=weather-real-time,weather-alerts
     depends_on:
-      #    kafka-topic-init:
-      #      condition: service_completed_successfully
+      kafka-topic-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
     networks:
@@ -472,8 +474,8 @@ services:
     depends_on:
       #   mongodb:
       #      condition: service_healthy
-      #    kafka-topic-init:
-      #      condition: service_completed_successfully
+      kafka-topic-init:
+        condition: service_completed_successfully
       redis:
         condition: service_healthy
       postgres:
