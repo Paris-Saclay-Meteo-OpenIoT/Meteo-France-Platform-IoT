@@ -83,6 +83,7 @@ export default function RegisterPage() {
             value="utilisateur"
             checked={role === "utilisateur"}
             onChange={(e) => setRole(e.target.value)}
+            required
             className="form-radio text-blue-600 h-4 w-4"
           />
           <span className="ml-2 text-gray-700">Utilisateur</span>
@@ -94,11 +95,11 @@ export default function RegisterPage() {
             value="scientifique"
             checked={role === "scientifique"}
             onChange={(e) => setRole(e.target.value)}
+            required
             className="form-radio text-blue-600 h-4 w-4"
           />
           <span className="ml-2 text-gray-700">Scientifique</span>
         </label>
-
         <label className="flex flex-col space-y-2 flex-row space-x-4 inline-flex items-center cursor-pointer">
           <input
             type="radio"
@@ -106,17 +107,11 @@ export default function RegisterPage() {
             value="admin"
             checked={role === "admin"}
             onChange={(e) => setRole(e.target.value)}
+            required
             className="form-radio text-blue-600 h-4 w-4"
           />
           <span className="ml-2 text-gray-700">Admin</span>
         </label>
-
-        {/*<Form.Select value={role} onChange={(e) => setRole(e.target.value)} required>
-          <option value="" disabled>Choisir un rôle</option>
-          <option value="utilisateur">Utilisateur</option>
-          <option value="scientifique">Scientifique</option>
-          <option value="admin">Admin</option>
-        </Form.Select>*/}
 
         {error && (
           <p className="text-red-500 text-sm mt-2">{error}</p>
