@@ -3,11 +3,11 @@
 case "${1:-start}" in
     start)
         command -v docker > /dev/null || exit 1
-        sudo ocker system prune -f // attention selon le besoin, -f force la suppression sans confirmation.
-        sudo docker-compose up -d
+        docker system prune -f // attention selon le besoin, -f force la suppression sans confirmation.
+        docker-compose up -d
         ;;
     stop)
-        sudo docker-compose down
+        docker-compose down
         ;;
     *)
         echo "Usage: $0 {start|stop}"
