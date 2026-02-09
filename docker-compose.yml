@@ -428,9 +428,10 @@ services:
       - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@ter_postgres:5432/${POSTGRES_DB}
       - EMAIL_ADDRESS=${EMAIL_ADDRESS}
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - CORS_ORIGIN=${CORS_ORIGIN}
     volumes:
       - ./services/backend:/usr/src/app
-      
+      - /usr/src/app/node_modules
     depends_on:
       mongodb:
         condition: service_healthy
