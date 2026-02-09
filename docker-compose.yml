@@ -95,8 +95,9 @@ services:
     container_name: ter_kafka-ui
     image: provectuslabs/kafka-ui:latest
     ports:
-      - "8080:8080"
+      - "8090:8090"
     environment:
+      SERVER_PORT: 8090
       KAFKA_CLUSTERS_0_NAME: "weather-cluster"
       KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: "ter_kafka:9092"
     depends_on:
@@ -235,6 +236,7 @@ services:
   # Consumers ==> ETL
   #-------------------------------------------------------
 
+  # lien https obligatoire : https://localhost:8443/
   nifi:
     image: apache/nifi:2.0.0
     container_name: ter_nifi
