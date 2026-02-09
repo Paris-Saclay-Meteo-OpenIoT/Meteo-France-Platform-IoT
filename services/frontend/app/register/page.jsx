@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [nom, setLastname] = useState("");
   const [prenom, setFirstname] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("");
   const [error, setError] = useState("");
   const router = useRouter();
 
@@ -26,8 +27,8 @@ export default function RegisterPage() {
       return; // Bloque l'envoi de la requête
     }
   
-    console.log("Données envoyées :", { email, nom, prenom, password });
-    const res = await register(email, nom, prenom, password);
+    console.log("Données envoyées :", { email, nom, prenom, password, role });
+    const res = await register(email, nom, prenom, password, role);
     if (!res.success) {
       setError("Un utilisateur avec cet email existe déjà");
     } else {
@@ -36,7 +37,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
+    <div className="max-w-lg mx-auto p-6 bg-white rounded-lg shadow-md mt-10">
       <h2 className="text-2xl font-bold text-gray-900 text-center mb-4">Inscription</h2>
       <form onSubmit={handleRegister} className="space-y-4">
         <input
@@ -71,6 +72,51 @@ export default function RegisterPage() {
           required
           className="w-full text-gray-700 p-2 border rounded"
         />
+        
+        <span className="text-gray-900 font-semibold whitespace-nowrap">
+          Choisissez votre rôle :
+        </span>
+        <label className="flex flex-col space-y-2 flex-row space-x-4 inline-flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="role"
+            value="utilisateur"
+            checked={role === "utilisateur"}
+            onChange={(e) => setRole(e.target.value)}
+            className="form-radio text-blue-600 h-4 w-4"
+          />
+          <span className="ml-2 text-gray-700">Utilisateur</span>
+        </label>
+        <label className="flex flex-col space-y-2 flex-row space-x-4 inline-flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="role"
+            value="scientifique"
+            checked={role === "scientifique"}
+            onChange={(e) => setRole(e.target.value)}
+            className="form-radio text-blue-600 h-4 w-4"
+          />
+          <span className="ml-2 text-gray-700">Scientifique</span>
+        </label>
+
+        <label className="flex flex-col space-y-2 flex-row space-x-4 inline-flex items-center cursor-pointer">
+          <input
+            type="radio"
+            name="role"
+            value="admin"
+            checked={role === "admin"}
+            onChange={(e) => setRole(e.target.value)}
+            className="form-radio text-blue-600 h-4 w-4"
+          />
+          <span className="ml-2 text-gray-700">Admin</span>
+        </label>
+
+        {/*<Form.Select value={role} onChange={(e) => setRole(e.target.value)} required>
+          <option value="" disabled>Choisir un rôle</option>
+          <option value="utilisateur">Utilisateur</option>
+          <option value="scientifique">Scientifique</option>
+          <option value="admin">Admin</option>
+        </Form.Select>*/}
 
         {error && (
           <p className="text-red-500 text-sm mt-2">{error}</p>
