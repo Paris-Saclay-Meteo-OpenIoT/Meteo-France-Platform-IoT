@@ -30,10 +30,10 @@ cp .env_template .env
 
 ```bash
 # Démarrer tous les services
-./launch.sh start
+./app.sh start
 
 # Arrêter les services
-./launch.sh stop
+./app.sh stop
 ```
 
 Le script va:
@@ -109,7 +109,6 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les instructions sur comment contri
 
 Chaque push sur la branche `main` déclenche :
 
-- Vérification du code (lint + tests)
 - Build des images Docker
-- Push vers GitHub Container Registry (GHCR)
-- Déploiement automatique sur une VM via SSH ( en cours..)
+- Push vers GitHub Container Registry
+- Déploiement automatique sur une VM via SSH
