@@ -255,9 +255,7 @@ services:
       - |
         set -e
         echo "=== 1. PREPARATION ==="
-        
-        echo "Telechargement Driver Postgres..."
-        wget -q -O /opt/nifi/nifi-current/lib/postgresql.jar https://jdbc.postgresql.org/download/postgresql-42.7.2.jar || echo "Pas d'internet, assure-toi d'avoir le jar !"
+        ls -l /opt/nifi/drivers/postgresql-42.7.2.jar && echo "Driver Postgres TROUVÉ via volume." || echo "ERREUR: Driver introuvable !"
 
         echo "=== 2. PROVISIONING FLUX ==="
         cp -v /tmp/flow_init.json.gz /opt/nifi/nifi-current/conf/flow.json.gz
@@ -273,8 +271,12 @@ services:
       - nifi_provenance:/opt/nifi/nifi-current/provenance_repository
       - nifi_state:/opt/nifi/nifi-current/state
       - nifi_logs:/opt/nifi/nifi-current/logs
-      # Golden Copy
+      
+      # 1. Golden Copy
       - ./infrastructure/nifi/flow/flow_gold.json.gz:/tmp/flow_init.json.gz:ro
+      
+      # 2. DRIVERS
+      - ./infrastructure/nifi/drivers:/opt/nifi/drivers:ro
       
     depends_on:
       - kafka
