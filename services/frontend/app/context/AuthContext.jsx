@@ -60,7 +60,7 @@ export function AuthProvider({ children }) {
       const res = await fetch("http://localhost:5000/api/users/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, nom, prenom, password }),
+        body: JSON.stringify({ email, nom, prenom, password, role: "user" }), // ajout du rule user par defaut pour l'inscription
       });
 
       const result = await res.json();
