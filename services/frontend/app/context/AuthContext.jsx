@@ -17,7 +17,8 @@ export function AuthProvider({ children }) {
 
   async function fetchUser(token) {
     try {
-      const res = await fetch("http://localhost:5000/api/users", {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${backendUrl}/api/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -33,7 +34,8 @@ export function AuthProvider({ children }) {
 
   async function login(email, password) {
     try {
-      const res = await fetch("http://localhost:5000/api/users/login", {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${backendUrl}/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -57,7 +59,8 @@ export function AuthProvider({ children }) {
 
   async function register(email, nom, prenom, password) {
     try {
-      const res = await fetch("http://localhost:5000/api/users/register", {
+      const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const res = await fetch(`${backendUrl}/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, nom, prenom, password, role: "user" }), // ajout du rule user par defaut pour l'inscription

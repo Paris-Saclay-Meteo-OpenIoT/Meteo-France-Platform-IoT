@@ -20,10 +20,7 @@ export default function StationDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const backendHost =
-          typeof window !== "undefined" && window.location.hostname === "localhost"
-            ? "http://localhost:5000"
-            : "http://ter_backend:5000";
+        const backendHost = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
   
         const response = await fetch(`${backendHost}/api/station/${id}`);
   
@@ -60,10 +57,7 @@ export default function StationDashboard() {
     }
 
     try {
-      const backendHost =
-        typeof window !== "undefined" && window.location.hostname === "localhost"
-          ? "http://localhost:5000"
-          : "http://ter_backend:5000";
+      const backendHost = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
       const endpoint = showSevenDays
         ? `${backendHost}/api/station/history/7d/${id}`
