@@ -1,0 +1,28 @@
+{
+  "last_update": "2026-02-10T10:22:15.640752",
+  "version": "4.1",
+  "data_time_range": {
+    "start": "2025-01-01T00:00:00",
+    "end": "2026-01-13T03:00:00"
+  },
+  "variables_used": [
+    "T",
+    "TN",
+    "TX",
+    "RR1",
+    "FF",
+    "FXI",
+    "TD",
+    "U"
+  ],
+  "statistics": {
+    "total_observations": 492473,
+    "total_stations": 55,
+    "total_anomalies": 8721,
+    "anomaly_rate": 1.7709,
+    "by_severity": {
+      "WARNING": 6737,
+      "CRITICAL": 1984
+    }
+  }
+}
