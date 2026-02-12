@@ -13,4 +13,4 @@ COPY test/ test/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Définir la commande d'exécution du script
-CMD ["python", "mongo_consumer.py"]
+CMD ["python", "-u", "postgres_consumer.py"]

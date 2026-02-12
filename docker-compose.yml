@@ -3,28 +3,24 @@ networks:
     driver: bridge
 
 services:
-
   #-------------------------------------------------------
-  # Nginx 
+  # Nginx
   #-------------------------------------------------------
   nginx:
-    image: 'jc21/nginx-proxy-manager:latest'
+    image: "jc21/nginx-proxy-manager:latest"
     container_name: ter_nginx_proxy_manager
     ports:
       # ports <host-port>:<container-port>
-      - '80:80' # Public HTTP Port
-      - '443:443' # Public HTTPS Port
-      - '81:81' # Admin Web Port
+      - "80:80" # Public HTTP Port
+      - "443:443" # Public HTTPS Port
+      - "81:81" # Admin Web Port
     volumes:
       - npm_data:/data #create vol in the container at /data path
       - npm_letsencrypt:/etc/letsencrypt
-    
+
     networks:
       - pipeline-net
     restart: unless-stopped
-
-    
-
 
   #-------------------------------------------------------
   # Kafka & Zookeeper
@@ -61,7 +57,14 @@ services:
       - ter_kafka_data:/var/lib/kafka
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "localhost:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-topics.sh",
+          "--list",
+          "--bootstrap-server",
+          "localhost:9092",
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -82,14 +85,22 @@ services:
     environment:
       - KAFKA_ZOOKEEPER_CONNECT=ter_zookeeper:2181
     volumes:
-      - ./infrastructure/kafka:/init_scripts  
+      - ./infrastructure/kafka:/init_scripts
     healthcheck:
-      test: ["CMD", "kafka-topics.sh", "--list", "--bootstrap-server", "ter_kafka:9092"]
+      test:
+        [
+          "CMD",
+          "kafka-topics.sh",
+          "--list",
+          "--bootstrap-server",
+          "ter_kafka:9092",
+        ]
       interval: 5s
       timeout: 10s
       retries: 3
     restart: "no"
-    entrypoint: ["/bin/sh", "-c", "sh /init_scripts/init_kafka_topics.sh"]
+    entrypoint:
+      ["/bin/sh", "-c", "sh /init_scripts/init_kafka_topics.sh || true"]
 
   kafka-ui:
     container_name: ter_kafka-ui
@@ -111,42 +122,50 @@ services:
   # Databases
   #-------------------------------------------------------
 
-  mongodb:
-    image: mongo:5.0
-    container_name: ter_mongodb
-    ports:
-      - "27017:27017" 
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-    volumes:
-      - ter_mongodb_data:/data/db
-    depends_on:
-      kafka-topic-init:
-        condition: service_completed_successfully
-    networks:
-      - pipeline-net
-    healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
-      retries: 3
+  #mongodb:
+  #  image: mongo:5.0
+  #  container_name: ter_mongodb
+  #  ports:
+  #    - "27017:27017"
+  #  environment:
+  #    MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+  #    MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+  #  volumes:
+  #    - ter_mongodb_data:/data/db
+  #  depends_on:
+  #   kafka-topic-init:
+  #      condition: service_completed_successfully
+  #  networks:
+  #    - pipeline-net
+  #  healthcheck:
+  #    test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+  #    interval: 5s
+  #    timeout: 5s
+  #    retries: 3
 
   redis:
     image: redis:latest
     container_name: ter_redis
+    user: root
     ports:
       - "6379:6379"
     restart: unless-stopped
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--notify-keyspace-events", "KEA"]
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "${REDIS_PASSWORD}",
+        "--notify-keyspace-events",
+        "KEA",
+      ]
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 5s
       retries: 3
-    depends_on:
-      kafka-topic-init:
-        condition: service_completed_successfully
+    #depends_on:
+    #kafka-topic-init:
+    #condition: service_completed_successfully
     networks:
       - pipeline-net
 
@@ -166,7 +185,8 @@ services:
     networks:
       - pipeline-net
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      test:
+        ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 3
@@ -209,8 +229,8 @@ services:
     depends_on:
       kafka-topic-init:
         condition: service_completed_successfully
-      mongodb:
-        condition: service_healthy
+    #    mongodb:
+    #      condition: service_healthy
     networks:
       - pipeline-net
 
@@ -235,6 +255,26 @@ services:
   #-------------------------------------------------------
   # Consumers ==> ETL
   #-------------------------------------------------------
+
+  # postgres_consumer:
+  #  build:
+  #    context: ./services/mongo_consumer
+  #  container_name: ter_postgres_consumer
+  #  volumes:
+  #    - ./services/mongo_consumer:/app
+  #  environment:
+  #    - KAFKA_BROKER=${KAFKA_BROKER}
+  #    - POSTGRES_USER=${POSTGRES_USER}
+  #    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+  #    - POSTGRES_DB=${POSTGRES_DB}
+  #    - POSTGRES_HOST=ter_postgres
+  #    - POSTGRES_PORT=5432
+  #  depends_on:
+  #    - kafka
+  #    - postgres
+  #  networks:
+  #    - pipeline-net
+  #  restart: unless-stopped
 
   # lien https obligatoire : https://localhost:8443/
   nifi:
@@ -380,18 +420,18 @@ services:
       - pipeline-net
     restart: unless-stopped
 
-  prometheus-mongodb-exporter:
-    image: bitnami/mongodb-exporter:latest
-    container_name: ter_prometheus-mongodb-exporter
-    ports:
-      - "9216:9216"
-    networks:
-      - pipeline-net
-    environment:
-      MONGODB_URI: mongodb://mongodb:27017
-      MONGODB_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
-      MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
-    restart: unless-stopped
+  #prometheus-mongodb-exporter:
+  #  image: bitnami/mongodb-exporter:latest
+  #  container_name: ter_prometheus-mongodb-exporter
+  #  ports:
+  #    - "9216:9216"
+  #  networks:
+  #    - pipeline-net
+  #  environment:
+  #    MONGODB_URI: mongodb://mongodb:27017
+  #    MONGODB_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+  #    MONGODB_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+  #  restart: unless-stopped
 
   prometheus-kafka-exporter:
     image: danielqsj/kafka-exporter:latest
@@ -403,7 +443,7 @@ services:
     environment:
       KAFKA_SERVER: ter_kafka:9092
     restart: unless-stopped
-  
+
   prometheus-redis-exporter:
     image: oliver006/redis_exporter:latest
     container_name: ter_prometheus-redis-exporter
@@ -412,8 +452,8 @@ services:
     networks:
       - pipeline-net
     environment:
-      REDIS_ADDR: "ter_redis:6379" 
-      REDIS_PASSWORD: "${REDIS_PASSWORD}" 
+      REDIS_ADDR: "ter_redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
     restart: unless-stopped
 
   cadvisor:
@@ -465,8 +505,8 @@ services:
       context: ./services/backend
     container_name: ter_backend
     ports:
-      - "5000:5000" 
-    
+      - "5000:5000"
+
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - MONGO_URI=mongodb://admin:password@ter_mongodb:27017/weatherDB?authSource=admin
@@ -483,10 +523,11 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
     volumes:
       - ./services/backend:/usr/src/app
-      
+      - /usr/src/app/node_modules
+
     depends_on:
-      mongodb:
-        condition: service_healthy
+      #   mongodb:
+      #      condition: service_healthy
       kafka-topic-init:
         condition: service_completed_successfully
       redis:
@@ -501,7 +542,7 @@ services:
       context: ./services/frontend
     container_name: ter_frontend
     ports:
-      - "3001:3001" 
+      - "3001:3001"
     environment:
       - ENV=${ENV}
       - NEXT_PUBLIC_API_URL=${ENVIRONMENT_URL}

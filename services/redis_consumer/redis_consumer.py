@@ -1,10 +1,11 @@
-#Permet de consommer des messages Kafka et de stocker et de faire des MAJ avec TTL des data dans une base Redis.
-#Permet d'avoir une vrai utilisation des data en temps réel avec une expiration des data qui est possible.
+# Permet de consommer des messages Kafka et de stocker et de faire des MAJ avec TTL des data dans une base Redis.
+# Permet d'avoir une vrai utilisation des data en temps réel avec une expiration des data qui est possible.
 import redis
 from kafka import KafkaConsumer
 import json
 import os
 import logging
+import time
 
 # -------------------------------------------------------------------
 # CONFIGURATION
@@ -25,7 +26,6 @@ logging.basicConfig(
 # UTILITY FUNCTIONS
 # -------------------------------------------------------------------
 
-#Permet de garder en mémoire les data météo en temps réel pour chaque station en faisant des MAJ régulières
 def process_real_time_data(redis_client, data):
     """
     Process real-time weather data and save it to Redis.
@@ -48,13 +48,12 @@ def process_real_time_data(redis_client, data):
         logging.error(f"[weather-real-time] Echec message : {e}")
 
 
-#Permet de gérer les alertes météo et de les stocker pendant 24h dans Redis
 def process_alert_data(redis_client, data):
     """
     Process weather alerts and save them to Redis.
     """
     try:
-        logging.info(f"[weather-alerts] Traitement de l'alerte : {data}")  # Nouveau log
+        logging.info(f"[weather-alerts] Traitement de l'alerte : {data}")
         alert_key = data.get("alert_key")
 
         if not alert_key:
@@ -74,13 +73,14 @@ def process_message(redis_client, topic, message):
     """
     try:
         # Need JSON format to process the message
-        data = json.loads(message.value)
-        if topic == "weather-real-time":
-            process_real_time_data(redis_client, data)
-        elif topic == "weather-alerts":
-            process_alert_data(redis_client, data)
-        else:
-            logging.warning(f"[{topic}] Topic inconnu, skipping...")
+        if message.value:
+            data = json.loads(message.value)
+            if topic == "weather-real-time":
+                process_real_time_data(redis_client, data)
+            elif topic == "weather-alerts":
+                process_alert_data(redis_client, data)
+            else:
+                logging.warning(f"[{topic}] Topic inconnu, skipping...")
     except Exception as e:
         logging.error(f"[{topic}] Echec du traitement du message: {e}")
 
@@ -89,7 +89,7 @@ def process_message(redis_client, topic, message):
 # -------------------------------------------------------------------
 
 def main():
-    # Connect to Redis
+    # 1. Connexion Redis
     redis_client = redis.StrictRedis(
         host=REDIS_HOST,
         port=REDIS_PORT,
@@ -97,22 +97,36 @@ def main():
         decode_responses=True
     )
 
-    # Connect to Kafka and subscribe to topics
-    consumer = KafkaConsumer(
-        *KAFKA_TOPICS,
-        group_id="redis-consumer-group",
-        bootstrap_servers=KAFKA_BROKER,
-        auto_offset_reset='earliest',
-        enable_auto_commit=True
-    )
+    # 2. Connexion Kafka avec Retry Loop
+    consumer = None
+    retries = 20
+    while retries > 0:
+        try:
+            logging.info(f"Tentative de connexion à Kafka ({KAFKA_BROKER})...")
+            consumer = KafkaConsumer(
+                *KAFKA_TOPICS,
+                group_id="redis-consumer-group",
+                bootstrap_servers=KAFKA_BROKER,
+                auto_offset_reset='earliest',
+                enable_auto_commit=True,
+                value_deserializer=lambda m: m.decode('utf-8')
+            )
+            logging.info("Connexion Kafka réussie !")
+            break
+        except Exception as e:
+            logging.warning(f"Kafka pas encore prêt ({e}). Nouvelle tentative dans 5s... ({retries} essais restants)")
+            time.sleep(5)
+            retries -= 1
+    
+    if not consumer:
+        logging.error("Impossible de se connecter à Kafka après plusieurs tentatives.")
+        exit(1)
 
-
-    logging.info(f"Connection aux topics: {', '.join(KAFKA_TOPICS)}")
+    logging.info(f"En attente de messages sur les topics: {', '.join(KAFKA_TOPICS)}")
 
     # Process each Kafka message
     for message in consumer:
         process_message(redis_client, message.topic, message)
-
 
 if __name__ == "__main__":
     main()

@@ -61,7 +61,7 @@ CREATE TABLE IF NOT EXISTS stations (
 -- TLAGON, QTLAGON, TVEGETAUX, QTVEGETAUX, ECOULEMENT, QECOULEMENT
 
 -- Table des mesures météo (Données temporelles)
-CREATE TABLE weather_measurements (
+CREATE TABLE IF NOT EXISTS weather_measurements (
     station_id VARCHAR(50),
     reference_time TIMESTAMP,
     -- Données Précipitations
