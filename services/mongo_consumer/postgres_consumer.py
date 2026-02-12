@@ -8,11 +8,7 @@ from psycopg2.extras import execute_values
 
 # Configuration
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "ter_kafka:9092")
-
-# --- MODIFICATION ICI : ON ECOUTE LES DEUX TOPICS ---
 TOPIC_NAMES = ["weather-verified", "weather-real-time"]
-# ----------------------------------------------------
-
 PG_USER = os.getenv("POSTGRES_USER", "admin")
 PG_PASSWORD = os.getenv("POSTGRES_PASSWORD", "password")
 PG_DB = os.getenv("POSTGRES_DB", "weatherDB")
@@ -20,6 +16,32 @@ PG_HOST = os.getenv("POSTGRES_HOST", "ter_postgres")
 PG_PORT = os.getenv("POSTGRES_PORT", "5432")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+
+# LISTE COMPLETE DES COLONNES (Basée sur ton init.sql)
+ALL_MEASUREMENT_COLUMNS = [
+    'rr1', 'qrr1', 'drr1', 'qdrr1', 'hneigef', 'qhneigef', 'neigetot', 'qneigetot',
+    't', 'qt', 'td', 'qtd', 'tn', 'qtn', 'htn', 'qhtn', 'tx', 'qtx', 'htx', 'qhtx',
+    'dg', 'qdg', 't10', 'qt10', 't20', 'qt20', 't50', 'qt50', 't100', 'qt100',
+    'tnsol', 'qtnsol', 'tn50', 'qtn50', 'tchaussee', 'qtchaussee', 'tw', 'qtw',
+    'pstat', 'qpstat', 'pmer', 'qpmer', 'geop', 'qgeop', 'pmermin', 'qpmermin',
+    'ff', 'qff', 'dd', 'qdd', 'fxi', 'qfxi', 'dxi', 'qdxi', 'hxi', 'qhxi',
+    'fxy', 'qfxy', 'dxy', 'qdxy', 'hxy', 'qhxy',
+    'ff2', 'qff2', 'dd2', 'qdd2', 'fxi2', 'qfxi2', 'dxi2', 'qdxi2', 'hxi2', 'qhxi2',
+    'fxi3s', 'qfxi3s', 'dxi3s', 'qdxi3s', 'hxi3s', 'qhxi3s',
+    'u', 'qu', 'un', 'qun', 'hun', 'qhun', 'ux', 'qux', 'hux', 'qhux',
+    'uabs', 'quabs', 'dhumi40', 'qdhumi40', 'dhumi80', 'qdhumi80', 'dhumec', 'qdhumec',
+    'tsv', 'qtsv', 'enth', 'qenth', 'ins', 'qins', 'glo', 'qglo', 'dir', 'qdir',
+    'dif', 'qdif', 'glo2', 'qglo2', 'uv', 'quv', 'infrar', 'qinfrar', 'uv_indice', 'quv_indice',
+    'n', 'qn', 'nbas', 'qnbas', 'cl', 'qcl', 'cm', 'qcm', 'ch', 'qch',
+    'n1', 'qn1', 'c1', 'qc1', 'b1', 'qb1', 'n2', 'qn2', 'c2', 'qc2', 'b2', 'qb2',
+    'n3', 'qn3', 'b3', 'qb3', 'c3', 'qc3', 'n4', 'qn4', 'c4', 'qc4', 'b4', 'qb4',
+    'ww', 'qww', 'vv', 'qvv', 'dvv200', 'qdvv200', 'w1', 'qw1', 'w2', 'qw2',
+    'sol', 'qsol', 'solng', 'qsolng', 'tsneige', 'qtsneige', 'tubeneige', 'qtubeneige',
+    'esneige', 'qesneige', 'hneigefi3', 'qhneigefi3', 'hneigefi1', 'qhneigefi1',
+    'tmer', 'qtmer', 'vvmer', 'qvvmer', 'etatmer', 'qetatmer', 'dirhoule', 'qdirhoule',
+    'tlagon', 'qtlagon', 'uv2', 'quv2', 'ins2', 'qins2', 'infrar2', 'qinfrar2',
+    'dir2', 'qdir2', 'dif2', 'qdif2'
+]
 
 def connect_to_postgres():
     retries = 10
@@ -33,25 +55,20 @@ def connect_to_postgres():
     exit(1)
 
 def format_meteo_date(date_val):
-    """Convertit les formats de date (CSV float ou ISO string) en SQL Timestamp."""
     if date_val is None: return None
     s = str(date_val)
-    
-    # Cas 1 : Format CSV nombre (ex: 2026020719.0)
     try:
+        # Format CSV brut Météo France (YYYYMMDDHH)
         if len(s) >= 10 and s.replace('.','').isdigit(): 
             clean_num = str(int(float(s)))
             if len(clean_num) == 10:
                  return f"{clean_num[0:4]}-{clean_num[4:6]}-{clean_num[6:8]} {clean_num[8:10]}:00:00"
     except: pass
+    return date_val 
 
-    # Cas 2 : Format ISO déjà propre (ex: "2026-02-08T19:24:07Z")
-    # Postgres gère bien l'ISO 8601 nativement, on renvoie tel quel
-    return date_val
-
-def get_val(data, *keys):
-    """Cherche la valeur (insensible à la casse)."""
-    for key in keys:
+def get_val(data, key_list):
+    """Cherche une valeur parmi plusieurs clés possibles."""
+    for key in key_list:
         if key in data and data[key] is not None:
             return data[key]
     return None
@@ -60,111 +77,115 @@ def insert_data(conn, data):
     try:
         cur = conn.cursor()
         
-        # --- MAPPING ---
-        sid = get_val(data, 'station_id', 'poste', 'num_poste', 'id')
-        name = get_val(data, 'name', 'nom', 'nom_usuel')
-        lat = get_val(data, 'lat', 'latitude')
-        lon = get_val(data, 'lon', 'longitude')
-        st_type = get_val(data, 'type', 'poste_type') # Ajout du type
-        s_date = get_val(data, 'start_date', 'date_ouverture') # Ajout date ouverture
+        # 1. Infos Station (Identifiants et Localisation)
+        sid = get_val(data, ['station_id', 'poste', 'num_poste', 'id'])
+        name = get_val(data, ['name', 'nom', 'nom_usuel'])
+        lat = get_val(data, ['lat', 'latitude'])
+        lon = get_val(data, ['lon', 'longitude'])
+        alt = get_val(data, ['alt', 'altitude', 'altti'])
         
-        raw_ref_time = get_val(data, 'reference_time', 'date')
+        # 2. Date de référence
+        raw_ref_time = get_val(data, ['reference_time', 'date'])
         ref_time = format_meteo_date(raw_ref_time)
         
-        valid_time = get_val(data, 'validity_time', 'date')
-        if not valid_time: valid_time = ref_time
-        else: valid_time = format_meteo_date(valid_time)
+        if not sid or not ref_time:
+            logging.warning("Donnée ignorée : pas d'ID ou de date.")
+            return
 
-        # On chope tout ce qu'on peut
-        temp = get_val(data, 't', 'temperature')
-        dew = get_val(data, 'td', 'point_de_rosee')
-        hum = get_val(data, 'u', 'humidite')
-        wind_dir = get_val(data, 'dd', 'direction_vent')
-        wind_speed = get_val(data, 'ff', 'force_vent')
-        rain = get_val(data, 'rr_per', 'rr1', 'precipitations') 
-
-        # --- SQL ---
-        
-        # Insertion STATION : C'est là que la magie opère !
-        # Si on reçoit un NOM ou une LAT/LON, on met à jour la ligne existante (même si elle a été créée vide avant)
+        # A. Insertion/Mise à jour STATION
         cur.execute("""
-            INSERT INTO stations (station_id, name, type, geo_id_insee, lat, lon, start_date)
-            VALUES (%s, %s, %s, NULL, %s, %s, %s)
+            INSERT INTO stations (station_id, name, lat, lon, alt)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (station_id) DO UPDATE 
             SET name = COALESCE(EXCLUDED.name, stations.name),
-                type = COALESCE(EXCLUDED.type, stations.type),
                 lat = COALESCE(EXCLUDED.lat, stations.lat),
                 lon = COALESCE(EXCLUDED.lon, stations.lon),
-                start_date = COALESCE(EXCLUDED.start_date, stations.start_date),
+                alt = COALESCE(EXCLUDED.alt, stations.alt),
                 updated_at = CURRENT_TIMESTAMP;
-        """, (sid, name, st_type, lat, lon, s_date))
+        """, (sid, name, lat, lon, alt))
 
-        # Insertion MESURE
-        cur.execute("""
-            INSERT INTO weather_measurements 
-            (station_id, reference_time, insert_time, validity_time, t, td, u, dd, ff, rr_per)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT DO NOTHING;
-        """, (sid, ref_time, time.strftime('%Y-%m-%d %H:%M:%S'), valid_time, temp, dew, hum, wind_dir, wind_speed, rain))
+        # B. Insertion MESURES (Dynamique pour tout gérer)
         
+        # Dictionnaire des valeurs à insérer
+        values_dict = {}
+        
+        # Mapping manuel pour les cas où le nom JSON != nom SQL
+        mappings = {
+            'rr1': ['rr1', 'rr', 'precipitations', 'rr_per'], # rr_per devient rr1
+            'pstat': ['pstat', 'pres', 'pression'],
+            'pmer': ['pmer', 'pression_mer']
+        }
+
+        # On remplit le dictionnaire avec toutes les colonnes possibles
+        for col in ALL_MEASUREMENT_COLUMNS:
+            # Soit on a un mapping spécifique, soit on cherche le nom de la colonne
+            keys_to_search = mappings.get(col, [col])
+            values_dict[col] = get_val(data, keys_to_search)
+
+        # Construction de la requête SQL dynamique
+        columns = ['station_id', 'reference_time'] + list(values_dict.keys())
+        placeholders = ['%s'] * len(columns)
+        values = [sid, ref_time] + list(values_dict.values())
+        
+        sql = f"""
+            INSERT INTO weather_measurements ({', '.join(columns)})
+            VALUES ({', '.join(placeholders)})
+            ON CONFLICT (station_id, reference_time) DO NOTHING;
+        """
+        
+        cur.execute(sql, values)
         conn.commit()
         cur.close()
 
     except Exception as e:
         conn.rollback()
-        # On ignore les erreurs de doublons classiques, on log les vrais soucis
         logging.error(f"Erreur SQL sur station {data.get('station_id', '?')} : {e}")
-        pass
 
 def main():
     conn = connect_to_postgres()
-    # On écoute les DEUX topics
     consumer = KafkaConsumer(
-        *TOPIC_NAMES,  # L'étoile déballe la liste des topics
+        *TOPIC_NAMES,
         bootstrap_servers=KAFKA_BROKER, 
         auto_offset_reset='earliest', 
-        group_id="postgres-consumer-group-v8", # V8 pour le V8 engine !
+        group_id="postgres-consumer-group-full-v1", 
         value_deserializer=lambda x: json.loads(x.decode('utf-8'))
     )
 
-    logging.info(f"Consumer V8 démarré. Écoute sur : {TOPIC_NAMES}")
+    logging.info(f"Consumer Full Schema démarré.")
     
     for message in consumer:
         packet = message.value
-        
-        # Cas 1 : Structure "Historique" (avec rows)
         rows = packet.get("rows", [])
         
-        # Cas 2 : Structure "Temps Réel" (Station unique, pas de rows, données à la racine)
-        # C'est ce format que tu vois dans ton navigateur !
         if not rows and "station_id" in packet:
-            # On traite le paquet directement comme une ligne
             insert_data(conn, packet)
-            logging.info(f"⚡ Donnée TEMPS RÉEL insérée pour {packet.get('name', packet.get('station_id'))}")
             continue
 
-        # Traitement du Cas 1 (Historique)
         meta_original = {
             "station_id": packet.get("station_id"),
             "name": packet.get("name") or packet.get("NOM_USUEL"),
             "lat": packet.get("lat") or packet.get("LAT"),
-            "lon": packet.get("lon") or packet.get("LON")
+            "lon": packet.get("lon") or packet.get("LON"),
+            "alt": packet.get("alt") or packet.get("ALTTI")
         }
-        metadata = {k.lower(): v for k, v in meta_original.items() if v is not None}
+        # Nettoyage des None dans metadata pour ne pas écraser
+        metadata = {k: v for k, v in meta_original.items() if v is not None}
 
         count = 0
         for row in rows:
+            # On fusionne la ligne de donnée avec les métadonnées de la station
             row_normalized = {k.lower(): v for k, v in row.items()}
             row_normalized.update(metadata)
             
+            # Gestion cas CSV 'poste'
             if 'station_id' not in row_normalized and 'poste' in row_normalized:
                 row_normalized['station_id'] = row_normalized['poste']
-                
+            
             insert_data(conn, row_normalized)
             count += 1
             
         if count > 0:
-            logging.info(f"📜 Données HISTORIQUE traitées pour {packet.get('station_id')} ({count} lignes)")
+            logging.info(f"Station {packet.get('station_id')} : {count} mesures traitées.")
 
 if __name__ == "__main__":
     main()
