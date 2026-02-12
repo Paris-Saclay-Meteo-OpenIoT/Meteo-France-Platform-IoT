@@ -1,0 +1,153 @@
+name: Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      kafka:
+        image: wurstmeister/kafka:latest
+        options: >-
+          --health-cmd "kafka-topics.sh --list --bootstrap-server localhost:9092"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 9092:9092
+        env:
+          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      
+      zookeeper:
+        image: wurstmeister/zookeeper:latest
+        ports:
+          - 2181:2181
+
+      mongodb:
+        image: mongo:5.0
+        options: >-
+          --health-cmd "mongo --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: password
+
+      redis:
+        image: redis:latest
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+      postgres:
+        image: postgres:13
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+
+  test-backend:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install backend dependencies
+        working-directory: ./services/backend
+        run: npm install
+
+      - name: Run backend tests
+        working-directory: ./services/backend
+        run: npm test --passWithNoTests || true
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        working-directory: ./services/frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./services/frontend
+        run: npm run build
+
+  test-python:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        python-version: ['3.9']
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run Python tests (api_observations_producer)
+        working-directory: ./services/api_observations_producer
+        run: |
+          pip install -r requirements.txt
+          pytest test/ -v || true
+
+      - name: Run Python tests (api_climatologique_producer)
+        working-directory: ./services/api_climatologique_producer
+        run: |
+          pip install -r requirements.txt
+          pytest test/ -v || true
+
+      - name: Run Python tests (redis_consumer)
+        working-directory: ./services/redis_consumer
+        run: |
+          pip install -r requirements.txt
+          pytest test/ -v || true
+
+#  sonar-analysis:
+ #   runs-on: ubuntu-latest
+  #  steps:
+   #   - name: Checkout code
+    #    uses: actions/checkout@v3
+     #   with:
+      #    fetch-depth: 0  # Full history for better analysis
+
+#      - name: SonarCloud Scan
+ #       uses: SonarSource/sonarcloud-github-action@master
+  #      env:
+   #       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

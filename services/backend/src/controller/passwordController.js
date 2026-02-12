@@ -15,7 +15,9 @@ async function forgotPassword(req, res) {
   
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
-  const resetLink = `http://localhost:5000/reset-password?token=${token}`;  
+  // Utiliser la variable d'environnement ENVIRONMENT_URL
+  const baseUrl = process.env.ENVIRONMENT_URL || 'http://localhost:5000';
+  const resetLink = `${baseUrl}reset-password?token=${token}`;  
 
   await sendResetPasswordEmail(email, resetLink);
 

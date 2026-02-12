@@ -1,120 +1,119 @@
-name: CI/CD Pipeline with GitHub Container Registry
+name: Deploy to Production
 
 on:
-  #push:
-   # branches:
-    #  - main
-  pull_request:
-    branches:
-      - main
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  push:
+    tags:
+      - 'v*' 
 
 jobs:
-  #  Étape 1 : Vérification du code et tests
-  lint-and-test:
+  terraform:
+    name: Terraform Plan & Apply
     runs-on: ubuntu-latest
+    outputs:
+      tf_outputs: ${{ steps.tf_output.outputs.result }}
     steps:
-      - name: Cloner le repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Installer Python
-        uses: actions/setup-python@v4
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          python-version: "3.9"
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
 
-      - name: Installer les dépendances
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      - name: Terraform Init
+        working-directory: ./infrastructure/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ./infrastructure/terraform
+        run: terraform plan -input=false -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ./infrastructure/terraform
+        run: terraform apply -input=false tfplan
+
+      - name: Get Terraform Outputs
+        id: tf_output
+        working-directory: ./infrastructure/terraform
         run: |
-          pip install -r services/api_climatologique_producer/requirements.txt
-          pip install -r services/api_observations_producer/requirements.txt
-          pip install -r services/api_vigilance_producer/requirements.txt
-          pip install selenium
+          SERVER_IP=$(terraform output -raw ec2_public_ip)
+          echo "result=$SERVER_IP" >> $GITHUB_OUTPUT
 
-      - name: Linter le code
-        run: |
-          pip install flake8
-          flake8 services/ || echo "Flake8 warnings"
-
-      - name: Installer
-        run: |
-          pip install pytest
-
-      - name: Ajouter les services au PYTHONPATH
-        run: |
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/services/api_climatologique_producer
-          export PYTHONPATH=$PYTHONPATH:$(pwd)/services/api_observations_producer
-          pytest services/
-      - name: Copier les fichiers de config pour les tests
-        run: |
-          cp services/api_climatologique_producer/config/config.yaml services/api_climatologique_producer/
-          cp services/api_observations_producer/config/config.yaml services/api_observations_producer/
-
-      - name: Lancer les tests #ignore selenium
-        run: |
-          pytest --ignore=services/frontend/test/test_selenium_app.py services/
-
-  #  Étape 2 : Build et Push des images Docker vers GHCR
-
-  build-and-push:
-    needs: lint-and-test
+  deploy:
+    name: Deploy Application
     runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
+    needs: terraform
+    outputs:
+      tag_name: ${{ steps.create_tag.outputs.tag_name }}
     steps:
-      - name: Cloner le repo
+      - name: Checkout repository
         uses: actions/checkout@v3
-
-      - name: Connexion à GitHub Container Registry
-        uses: docker/login-action@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch all history for tag creation
 
-      - name: Image repo
-        run: echo "IMAGE_REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+      - name: Deploy with Docker Compose
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ needs.terraform.outputs.tf_outputs }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ~/Meteo-France-Platform-IoT
+            git fetch origin main
+            git checkout main
+            git reset --hard origin/main
+            docker compose down || true
+            docker compose build --no-cache
+            docker compose up -d
+            docker system prune -f
+            echo "Application deployed successfully"
 
-      - name: Build et Push Backend
-
+      - name: Create Production Tag
+        id: create_tag
         run: |
-          docker build -t ghcr.io/$IMAGE_REPO/backend:latest services/backend
-          docker push ghcr.io/$IMAGE_REPO/backend:latest
+          # Get the latest tag
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          
+          # Parse version
+          MAJOR=$(echo $LATEST_TAG | cut -d. -f1 | sed 's/v//')
+          MINOR=$(echo $LATEST_TAG | cut -d. -f2)
+          PATCH=$(echo $LATEST_TAG | cut -d. -f3)
+          
+          # Increment patch version
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
+          
+          # Create annotated tag with deployment info
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git tag -a "$NEW_TAG" -m "Production deployment: $NEW_TAG
+          
+          Deployed at: $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+          Commit: ${{ github.sha }}
+          Workflow: ${{ github.workflow }}
+          Actor: ${{ github.actor }}"
+          
+          # Push tag to remote
+          git push origin "$NEW_TAG"
+          
+          echo "tag_name=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Successfully created and pushed tag: $NEW_TAG"
 
-      - name: Build et Push Frontend
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: success()
+    steps:
+      - name: Display Deployment Summary
         run: |
-          docker build -t ghcr.io/$IMAGE_REPO/frontend:latest services/frontend
-          docker push ghcr.io/$IMAGE_REPO/frontend:latest
-
-      - name: Build et Push Kafka Producers
-        run: |
-          docker build -t ghcr.io/$IMAGE_REPO/api-climatologique:latest services/api_climatologique_producer
-          docker push ghcr.io/$IMAGE_REPO/api-climatologique:latest
-
-          docker build -t ghcr.io/$IMAGE_REPO/api-observations:latest services/api_observations_producer
-          docker push ghcr.io/$IMAGE_REPO/api-observations:latest
-
-          docker build -t ghcr.io/$IMAGE_REPO/api-vigilance:latest services/api_vigilance_producer
-          docker push ghcr.io/$IMAGE_REPO/api-vigilance:latest
-
-  # #Étape 3 : Déploiement sur le serveur
-  # deploy:
-  #   needs: build-and-push
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name:  Cloner le repo
-  #       uses: actions/checkout@v3
-
-  #     - name:  Déploiement sur le serveur avec Docker Compose
-  #       uses: appleboy/ssh-action@master
-  #       with:
-  #         host: ${{ secrets.SERVER_HOST }}
-  #         username: ${{ secrets.SERVER_USER }}
-  #         key: ${{ secrets.SERVER_SSH_KEY }}
-  #         script: |
-  #           cd /path
-  #           docker-compose pull
-  #           docker-compose up -d
-  #           docker system prune -f
+          echo "Deployment Successful!"
+          echo "Production Tag: ${{ needs.deploy.outputs.tag_name }}"
+          echo "View tag: https://github.com/${{ github.repository }}/releases/tag/${{ needs.deploy.outputs.tag_name }}"

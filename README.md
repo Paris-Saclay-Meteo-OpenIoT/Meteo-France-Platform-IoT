@@ -109,7 +109,6 @@ Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour les instructions sur comment contri
 
 Chaque push sur la branche `main` déclenche :
 
-- Vérification du code (lint + tests)
 - Build des images Docker
-- Push vers GitHub Container Registry (GHCR)
-- Déploiement automatique sur une VM via SSH ( en cours..)
+- Push vers GitHub Container Registry
+- Déploiement automatique sur une VM via SSH
