@@ -6,15 +6,16 @@ const pool = require("../config/db");
 router.get("/", async (req, res) => {
   try {
     const query = `
-      SELECT * FROM system_alerts 
+      SELECT DISTINCT ON (alert_key) * FROM system_alerts 
       WHERE status IN ('active', 'resolved', 'a_verifier') 
-      ORDER BY received_at DESC
+      ORDER BY alert_key, received_at DESC
     `;
+    
     const { rows } = await pool.query(query);
 
     const formattedAlerts = rows.map((alert) => ({
       ...alert,
-      key: alert.alert_key,
+      key: alert.alert_key, 
     }));
 
     res.status(200).json(formattedAlerts);

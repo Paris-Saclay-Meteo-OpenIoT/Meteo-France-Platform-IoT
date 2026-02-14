@@ -175,5 +175,24 @@ CREATE TABLE IF NOT EXISTS weather_measurements (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_mesure_per_time UNIQUE (station_id, reference_time)
 );
+
+-- Table pour les alertes système (Migration depuis MongoDB)
+CREATE TABLE IF NOT EXISTS system_alerts (
+    id SERIAL PRIMARY KEY,
+    alert_key VARCHAR(255),
+    alert_name VARCHAR(255),
+    severity VARCHAR(50),    
+    category VARCHAR(50),    
+    status VARCHAR(50),           
+    description TEXT,
+    container VARCHAR(100),       
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT unique_alert_key UNIQUE (alert_key)
+);
+
 -- Index pour accélérer les recherches (Indispensable pour les courbes Grafana)
 CREATE INDEX idx_weather_station_time ON weather_measurements (station_id, reference_time DESC);
+
+-- Index pour accélérer les recherches par clé
+CREATE INDEX IF NOT EXISTS idx_alert_key ON system_alerts(alert_key);

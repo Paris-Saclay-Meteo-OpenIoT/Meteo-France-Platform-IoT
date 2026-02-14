@@ -8,17 +8,24 @@ const activeAlerts = new Map();
 const persistAlertToPostgres = async (alertData) => {
   try {
     const query = `
-      INSERT INTO system_alerts (alert_name, severity, status, description, container, received_at, alert_key)
-      VALUES ($1, $2, $3, $4, $5, NOW(), $6)
+      INSERT INTO system_alerts (alert_name, severity, status, description, container, category, received_at, alert_key)
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)
+      ON CONFLICT (alert_key) 
+      DO UPDATE SET 
+        status = EXCLUDED.status,
+        description = EXCLUDED.description,
+        received_at = NOW(),
+        container = EXCLUDED.container,
+        category = EXCLUDED.category;
     `;
 
+    const category = alertData.labels?.category || "system";
     const alertName = alertData.labels?.alertname || "Alerte Inconnue";
     const severity = alertData.labels?.severity || "info";
     const container = alertData.labels?.container || "N/A";
-    const description =
-      alertData.annotations?.description || "Pas de description";
+    const description = alertData.annotations?.description || "Pas de description";
     const status = alertData.status;
-    const key = alertData.key;
+    const key = alertData.key; 
 
     await pool.query(query, [
       alertName,
@@ -26,6 +33,7 @@ const persistAlertToPostgres = async (alertData) => {
       status,
       description,
       container,
+      category,
       key,
     ]);
   } catch (err) {
