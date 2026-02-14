@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { WiThermometer, WiHumidity, WiStrongWind, WiBarometer, WiRain } from "react-icons/wi";
 import { Chart, LineController, LineElement, PointElement, LinearScale, Title, CategoryScale, Tooltip } from "chart.js";
+import { useAuth } from "../../context/AuthContext";
 
 export default function StationDashboard() {
   const { id } = useParams();
@@ -11,6 +12,8 @@ export default function StationDashboard() {
   const [loading, setLoading] = useState(true);
   const [historyData, setHistoryData] = useState(null);
   const [showSevenDays, setShowSevenDays] = useState(false); // Afficher les 7 derniers jours ou non
+  const { user, logout } = useAuth();
+  const isAdminOrSci = user?.role === "admin" || user?.role === "scientifique";
 
   const cache = useRef({
     "24h": { data: null, timestamp: 0 },
@@ -514,46 +517,48 @@ if (ctxWind && historyData.some((data) => data.ff)) {
     🕒 En attente de données historiques...
   </p>
 ) : (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-    {historyData.some((data) => data.t) && (
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-center">Température ({showSevenDays ? '7 jours' : '24h'})</h2>
-        <canvas id="tempChart" width="400" height="200"></canvas>
-        <button
-      onClick={() => downloadChartAsPng("tempChart", "temperature.png")}
-      className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-    >
-      📷 Exporter
-    </button>
-      </div>
-    )}
+  user && isAdminOrSci && (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      {historyData.some((data) => data.t) && (
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-center">Température ({showSevenDays ? '7 jours' : '24h'})</h2>
+          <canvas id="tempChart" width="400" height="200"></canvas>
+          <button
+        onClick={() => downloadChartAsPng("tempChart", "temperature.png")}
+        className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        📷 Exporter
+      </button>
+        </div>
+      )}
 
-    {historyData.some((data) => data.u) && (
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-center">Humidité ({showSevenDays ? '7 jours' : '24h'})</h2>
-        <canvas id="humidityChart" width="400" height="200"></canvas>
-        <button
-      onClick={() => downloadChartAsPng("humidityChart", "humidite.png")}
-      className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-    >
-      📷 Exporter
-    </button>
-      </div>
-    )}
+      {historyData.some((data) => data.u) && (
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-center">Humidité ({showSevenDays ? '7 jours' : '24h'})</h2>
+          <canvas id="humidityChart" width="400" height="200"></canvas>
+          <button
+        onClick={() => downloadChartAsPng("humidityChart", "humidite.png")}
+        className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        📷 Exporter
+      </button>
+        </div>
+      )}
 
-    {historyData.some((data) => data.ff) && (
-      <div className="bg-white p-4 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold text-center">Vent ({showSevenDays ? '7 jours' : '24h'})</h2>
-        <canvas id="windChart" width="400" height="200"></canvas>
-        <button
-      onClick={() => downloadChartAsPng("windChart", "vent.png")}
-      className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
-    >
-      📷 Exporter
-    </button>
-      </div>
-    )}
-  </div>
+      {historyData.some((data) => data.ff) && (
+        <div className="bg-white p-4 rounded-lg shadow-md">
+          <h2 className="text-xl font-semibold text-center">Vent ({showSevenDays ? '7 jours' : '24h'})</h2>
+          <canvas id="windChart" width="400" height="200"></canvas>
+          <button
+        onClick={() => downloadChartAsPng("windChart", "vent.png")}
+        className="mt-2 px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+      >
+        📷 Exporter
+      </button>
+        </div>
+      )}
+    </div>
+  )
 )}
 
 </div>
@@ -567,28 +572,33 @@ if (ctxWind && historyData.some((data) => data.ff)) {
     Afficher les {showSevenDays ? "24 dernières heures" : "7 derniers jours"}
   </button>
 
-  {/* Bouton pour exporter les graphes */}
-  <button
-    onClick={() => downloadAllChartsAsPng(showSevenDays)}
-    className="py-2 px-4 bg-purple-500 text-white font-semibold rounded hover:bg-purple-600"
-  >
-    📦 Exporter les graphes sur {showSevenDays ? "7 jours" : "24h"}
-  </button>
+  {user && isAdminOrSci && (
+    <>
+      {/* Bouton pour exporter les graphes */}
+      <button
+        onClick={() => downloadAllChartsAsPng(showSevenDays)}
+        className="py-2 px-4 bg-purple-500 text-white font-semibold rounded hover:bg-purple-600"
+      >
+        📦 Exporter les graphes sur {showSevenDays ? "7 jours" : "24h"}
+      </button>
 
-  {/* Bouton pour télécharger les données */}
-  {historyData && (
-    <button
-      onClick={() =>
-        downloadDataAsJson(
-          historyData,
-          `${stationData.name}_${showSevenDays ? "7jours" : "24h"}.json`
-        )
-      }
-      className="py-2 px-4 bg-blue-500 text-white font-semibold rounded hover:bg-blue-600"
-    >
-      💾 Télécharger les données {showSevenDays ? "sur 7 jours" : "sur 24h"}
-    </button>
+      {/* Bouton pour télécharger les données */}
+      {historyData && (
+        <button
+          onClick={() =>
+            downloadDataAsJson(
+              historyData,
+              `${stationData.name}_${showSevenDays ? "7jours" : "24h"}.json`
+            )
+          }
+          className="py-2 px-4 bg-blue-500 text-white font-semibold rounded hover:bg-blue-600"
+        >
+          💾 Télécharger les données {showSevenDays ? "sur 7 jours" : "sur 24h"}
+        </button>
+      )}
+    </>
   )}
+
 </div>
       </div>
     );  

@@ -57,13 +57,13 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function register(email, nom, prenom, password) {
+  async function register(email, nom, prenom, password, role) {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
       const res = await fetch(`${backendUrl}/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, nom, prenom, password, role: "user" }), // ajout du rule user par defaut pour l'inscription
+        body: JSON.stringify({ email, nom, prenom, password, role }),
       });
 
       const result = await res.json();
