@@ -8,7 +8,7 @@ async function register(req, res) {
   const { email, nom, prenom, password, role } = req.body;
   
   // Vérifier que les champs requis sont fournis
-  if (!email || !nom || !prenom || !password || !role) {
+  if (!email || !nom || !prenom || !password || !role) { // requiert egalement le role pour l'inscription de l'utilisateur
     return res.status(400).json({ error: "Email, nom, prenom, password et role sont requis." });
   }
   

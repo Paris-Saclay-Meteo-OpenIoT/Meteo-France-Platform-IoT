@@ -19,7 +19,7 @@ router.post('/register', [
     check('password')
       .matches(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{8,}$/)
       .withMessage("Le mot de passe doit contenir au moins 8 caractères, dont une majuscule, une minuscule et un chiffre."),
-    check('role')
+    check('role') // source de l'erreur 400 pour de l'insription de l'utilisateur (exige l'attribution d'un role)
       .notEmpty()
       .withMessage("Le rôle est requis.")
   ], (req, res, next) => {
