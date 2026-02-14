@@ -370,15 +370,16 @@ services:
     restart: unless-stopped
 
   cadvisor:
-    image: google/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:latest
     container_name: ter_cadvisor
     ports:
-      - "8090:8080" 
+      - "8090:8080"
     volumes:
       - /:/rootfs:ro
       - /var/run:/var/run:ro
       - /sys:/sys:ro
-    restart: always
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: unless-stopped
     privileged: true
     networks:
       - pipeline-net
