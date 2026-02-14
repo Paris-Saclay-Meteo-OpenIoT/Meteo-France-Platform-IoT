@@ -107,8 +107,9 @@ class CompleteAnomalyDetector:
         print("LOADING AND PREPROCESSING DATA")
         print("=" * 80)
 
-        print(f"\n1. Loading: {self.parquet_path}")
-        self.df = pd.read_parquet(self.parquet_path)
+        if self.df is None:
+            print(f"\n1. Loading: {self.parquet_path}")
+            self.df = pd.read_parquet(self.parquet_path)
         print(f"   Shape: {self.df.shape}")
 
         if self.exclude_stations:
@@ -497,7 +498,7 @@ class CompleteAnomalyDetector:
     # OUTPUT
     # ====================================================================
 
-    def extract_anomalies(self, output_prefix="weather_anomalies_complete"):
+    def extract_anomalies(self):
         print("\n" + "=" * 80)
         print("EXTRACTING ANOMALIES")
         print("=" * 80)
@@ -520,10 +521,6 @@ class CompleteAnomalyDetector:
         keep = [c for c in keep if c in self.df.columns and not (c in seen or seen.add(c))]
         anoms = anoms[keep]
 
-        anoms.to_parquet(f"{output_prefix}.parquet", index=False)
-        anoms.to_csv(f"{output_prefix}.csv", index=False)
-        print(f"   Saved: {output_prefix}.parquet/.csv")
-
         show = [c for c in ["NUM_POSTE","timestamp","score_final","severity","score_spatial","score_temporal","is_persistent","is_stuck_any"] if c in anoms.columns]
         print(f"\n{anoms[show].head(10).to_string()}")
         return anoms
@@ -532,7 +529,7 @@ class CompleteAnomalyDetector:
     # FULL PIPELINE
     # ====================================================================
 
-    def run_full_pipeline(self, output_prefix="weather_anomalies_complete"):
+    def run_full_pipeline(self):
         print("\n╔" + "═"*78 + "╗")
         print("║  3-LEVEL ANOMALY DETECTION" + " "*52 + "║")
         print("╚" + "═"*78 + "╝")
@@ -542,7 +539,7 @@ class CompleteAnomalyDetector:
         self.compute_spatial_scores()
         self.compute_temporal_scores()
         self.compute_combined_scores()
-        anomalies = self.extract_anomalies(output_prefix)
+        anomalies = self.extract_anomalies()
 
         print(f"\nCOMPLETE — {len(anomalies):,} / {len(self.df):,} ({100*len(anomalies)/len(self.df):.2f}%)")
         return self.df, anomalies

@@ -25,7 +25,7 @@ def main():
         return
 
     detector = CompleteAnomalyDetector(**get_detector_config(sensitivity="medium"))
-    df_full, df_anomalies = detector.run_full_pipeline(output_prefix="temp_detection")
+    df_full, df_anomalies = detector.run_full_pipeline()
 
     print(f"\nTotal observations: {len(df_full):,}")
     print(f"Total anomalies:    {len(df_anomalies):,} "

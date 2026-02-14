@@ -1,0 +1,7 @@
+kafka-python
+pandas
+numpy
+scikit-learn
+pyarrow
+apscheduler
+pytz

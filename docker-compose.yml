@@ -452,6 +452,22 @@ services:
       timeout: 5s
       retries: 3
 
+  api_anomaly_detection:
+    build:
+      context: ./services/api_anomaly_detection
+    container_name: ter_api_anomaly_detection
+    volumes:
+      - ./services/api_anomaly_detection:/app
+      - ./logs/anomaly_detection:/app/logs
+    environment:
+      - KAFKA_BROKER=${KAFKA_BROKER}
+      - DETECTION_INTERVAL_HOURS=24
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - pipeline-net
+
   #-------------------------------------------------------
   # Client web
   #-------------------------------------------------------
