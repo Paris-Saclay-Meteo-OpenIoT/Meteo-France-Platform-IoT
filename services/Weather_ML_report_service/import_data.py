@@ -1,7 +1,7 @@
 import pandas as pd
 from sqlalchemy import create_engine
 from config import DB_URI
-
+#This file is just for testing purposes
 engine = create_engine(DB_URI)
 
 columns_to_keep = {
@@ -35,5 +35,6 @@ for chunk in chunks:
     
     print(f"✅ Bloc traité : {len(chunk)} lignes ajoutées (période valide).")
     first_chunk = False
+
 
 print("🏁 Importation filtrée terminée !")
