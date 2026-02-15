@@ -8,8 +8,9 @@ export default function DBPage() {
 
 
   // Dashboards URLs
+  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3000';
   const dashboards = {
-    redis: "http://localhost:3000/d/xDLNRKUWz/redis-dashboard?orgId=1&kiosk=1&theme=light"
+    redis: `${grafanaUrl}/d/xDLNRKUWz/redis-dashboard?orgId=1&kiosk=1&theme=light`
   };
 
   // Handle dashboard click with loading control, prevent fetch errors
