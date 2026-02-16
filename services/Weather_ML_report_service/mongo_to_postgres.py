@@ -124,6 +124,13 @@ def transform_mongo_to_postgres(mongo_data):
                 'lon': doc.get('lon') or doc.get('LON'),
             }
             
+            # Ne garder que les entrées horaires (secondes = 0)
+            # Les données d'observation avec timestamps non-horaires sont des doublons incohérents
+            if record['date']:
+                dt = pd.to_datetime(record['date'])
+                if dt.second != 0 or dt.microsecond != 0:
+                    continue
+            
             # Valider les champs critiques
             if record['nom_usuel'] and record['date']:
                 records.append(record)

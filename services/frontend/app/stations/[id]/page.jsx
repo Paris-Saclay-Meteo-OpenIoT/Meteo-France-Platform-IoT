@@ -153,13 +153,13 @@ useEffect(() => {
     }
   }
 
-  if (stationData && isForecast) {
+  if (stationData) {
     fetchForecast(); // Chargement initial (avec cache)
     const interval = setInterval(() => fetchForecast(true), 5 * 60 * 1000); // Rafraîchissement forcé
 
     return () => clearInterval(interval); // Nettoyage du timer si `stationData` change
   }
-}, [stationData, isForecast, id]); // Recharger les prévisions
+}, [stationData, id]); // Recharger les prévisions
   function downloadDataAsJson(data, filename = "data.json") {
     try {
       if (!data || data.length === 0) {
@@ -600,16 +600,16 @@ useEffect(() => {
     );
   }
   
-  // Déclarer d'abord les constantes de base
-  const temperatureC =
+  // Déclarer d'abord les constantes de base (temps réel depuis stationData)
+  const realtimeTempC =
     stationData?.t !== undefined && stationData?.t !== null
       ? (stationData.t - 273.15).toFixed(1)
       : "N/A";
-  const humidity = stationData?.u ?? "N/A";
-  const windSpeed = stationData?.ff ?? "N/A";
-  const windDirection = stationData?.dd ?? "N/A";
-  const pressure = stationData?.pmer ? (stationData.pmer / 100).toFixed(2) : "N/A";
-  const precipitation = stationData?.rr_per ?? "N/A";
+  const realtimeHumidity = stationData?.u ?? "N/A";
+  const realtimeWindSpeed = stationData?.ff ?? "N/A";
+  const realtimeWindDirection = stationData?.dd ?? "N/A";
+  const realtimePressure = stationData?.pmer ? (stationData.pmer / 100).toFixed(2) : "N/A";
+  const realtimePrecipitation = stationData?.rr_per ?? "N/A";
   
   // Calculer les stats des prévisions (min/max/moy)
   const forecastStats = isForecast && forecastData?.length > 0 ? {
@@ -620,11 +620,6 @@ useEffect(() => {
     rr1_total: forecastData.filter(d => d.rr1_pred != null).reduce((s, d) => s + d.rr1_pred, 0).toFixed(1),
   } : null;
 
-  // Puis calculer displayTemperature en utilisant temperatureC
-  const displayTemperature = isForecast && forecastStats
-    ? `${forecastStats.t_min} — ${forecastStats.t_max}`
-    : temperatureC;
-  
   // Puis calculer lastDataTime
   const lastDataTime = historyData?.length > 0
     ? new Date(historyData[historyData.length - 1]?.reference_time).toLocaleString()
@@ -634,6 +629,10 @@ useEffect(() => {
   const forecastTargetDate = forecastData?.length > 0
     ? new Date(forecastData[0]?.forecast_time).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
     : null;
+
+  // Vérifie si la station a des données historiques antérieures à aujourd'hui
+  const todayStr = new Date().toDateString();
+  const hasPastHistory = historyData?.some(d => new Date(d.reference_time).toDateString() !== todayStr) ?? false;
 
   // Navigation : date sélectionnée et données filtrées
   const selectedDate = new Date();
@@ -646,6 +645,41 @@ useEffect(() => {
     const filtered = historyData.filter(d => new Date(d.reference_time).toDateString() === targetDateStr);
     return filtered.length > 0 ? filtered : null;
   })();
+
+  // Calculer les stats du jour sélectionné à partir de filteredHistoryData
+  const dayStats = (!isForecast && dayOffset !== 0 && filteredHistoryData?.length > 0) ? (() => {
+    const temps = filteredHistoryData.filter(d => d.t != null).map(d => Number.parseFloat(d.t));
+    const hums = filteredHistoryData.filter(d => d.u != null).map(d => Number.parseFloat(d.u));
+    const winds = filteredHistoryData.filter(d => d.ff != null).map(d => Number.parseFloat(d.ff));
+    const dirs = filteredHistoryData.filter(d => d.dd != null).map(d => Number.parseFloat(d.dd));
+    const precips = filteredHistoryData.filter(d => d.rr1 != null).map(d => Number.parseFloat(d.rr1));
+    const last = filteredHistoryData[filteredHistoryData.length - 1];
+    return {
+      t: temps.length > 0 ? (temps.reduce((a, b) => a + b, 0) / temps.length).toFixed(1) : "N/A",
+      t_min: temps.length > 0 ? Math.min(...temps).toFixed(1) : null,
+      t_max: temps.length > 0 ? Math.max(...temps).toFixed(1) : null,
+      u: hums.length > 0 ? Math.round(hums.reduce((a, b) => a + b, 0) / hums.length) : "N/A",
+      ff: winds.length > 0 ? (winds.reduce((a, b) => a + b, 0) / winds.length).toFixed(1) : "N/A",
+      dd: dirs.length > 0 ? Math.round(dirs.reduce((a, b) => a + b, 0) / dirs.length) : "N/A",
+      rr1: precips.length > 0 ? precips.reduce((a, b) => a + b, 0).toFixed(1) : "N/A",
+      pmer: last?.pmer ? (last.pmer / 100).toFixed(2) : "N/A",
+    };
+  })() : null;
+
+  // Valeurs affichées sur les cartes selon le mode
+  const temperatureC = dayStats ? dayStats.t : realtimeTempC;
+  const humidity = dayStats ? dayStats.u : realtimeHumidity;
+  const windSpeed = dayStats ? dayStats.ff : realtimeWindSpeed;
+  const windDirection = dayStats ? dayStats.dd : realtimeWindDirection;
+  const pressure = dayStats ? dayStats.pmer : realtimePressure;
+  const precipitation = dayStats ? dayStats.rr1 : realtimePrecipitation;
+
+  // Puis calculer displayTemperature en utilisant temperatureC
+  const displayTemperature = isForecast && forecastStats
+    ? `${forecastStats.t_min} — ${forecastStats.t_max}`
+    : dayStats && dayStats.t_min && dayStats.t_max
+      ? `${dayStats.t_min} — ${dayStats.t_max}`
+      : temperatureC;
 
   const periodLabel = isForecast
     ? `prévisions ${forecastTargetDate || ''}`
@@ -670,9 +704,9 @@ useEffect(() => {
         <div className="flex items-center justify-center gap-4 mb-4">
           <button
             onClick={() => setDayOffset(prev => Math.max(prev - 1, -6))}
-            disabled={dayOffset <= -6}
+            disabled={dayOffset <= -6 || !hasPastHistory}
             className={`text-2xl font-bold px-3 py-1 rounded transition-colors ${
-              dayOffset <= -6 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100 cursor-pointer'
+              (dayOffset <= -6 || !hasPastHistory) ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100 cursor-pointer'
             }`}
           >
             ◀
@@ -692,9 +726,9 @@ useEffect(() => {
           </div>
           <button
             onClick={() => setDayOffset(prev => Math.min(prev + 1, 1))}
-            disabled={dayOffset >= 1}
+            disabled={dayOffset >= 1 || (dayOffset === 0 && !forecastData?.length)}
             className={`text-2xl font-bold px-3 py-1 rounded transition-colors ${
-              dayOffset >= 1 ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100 cursor-pointer'
+              (dayOffset >= 1 || (dayOffset === 0 && !forecastData?.length)) ? 'text-gray-300 cursor-not-allowed' : 'text-blue-600 hover:bg-blue-100 cursor-pointer'
             }`}
           >
             ▶
@@ -707,10 +741,13 @@ useEffect(() => {
             {/* Température */}
             <div className="p-4 bg-white border rounded-lg shadow-md flex flex-col items-center">
               <WiThermometer size={40} className="text-red-500" />
-              <h2 className="text-sm font-semibold mt-2">{isForecast ? 'Température (min — max)' : 'Température'}</h2>
+              <h2 className="text-sm font-semibold mt-2">{isForecast ? 'Température (min — max)' : dayStats ? 'Température (min — max)' : 'Température'}</h2>
               <p className="text-lg font-bold">{displayTemperature}°C</p>
               {isForecast && forecastStats && (
                 <p className="text-xs text-gray-500">moy. {forecastStats.t_avg}°C</p>
+              )}
+              {dayStats && dayStats.t !== 'N/A' && (
+                <p className="text-xs text-gray-500">moy. {dayStats.t}°C</p>
               )}
             </div>
     
@@ -718,7 +755,7 @@ useEffect(() => {
             {!isForecast && (
               <div className="p-4 bg-white border rounded-lg shadow-md flex flex-col items-center">
                 <WiHumidity size={40} className="text-blue-500" />
-                <h2 className="text-sm font-semibold mt-2">Humidité</h2>
+                <h2 className="text-sm font-semibold mt-2">{dayStats ? 'Humidité (moy.)' : 'Humidité'}</h2>
                 <p className="text-lg font-bold">{humidity}%</p>
               </div>
             )}
@@ -726,7 +763,7 @@ useEffect(() => {
             {/* Vent */}
             <div className="p-4 bg-white border rounded-lg shadow-md flex flex-col items-center">
               <WiStrongWind size={40} className="text-gray-700" />
-              <h2 className="text-sm font-semibold mt-2">{isForecast ? 'Vent (moy.)' : 'Vent'}</h2>
+              <h2 className="text-sm font-semibold mt-2">{(isForecast || dayStats) ? 'Vent (moy.)' : 'Vent'}</h2>
               <p className="text-lg font-bold">{isForecast && forecastStats ? forecastStats.ff_avg : windSpeed} m/s</p>
               {!isForecast && <p className="text-sm">Direction : {windDirection}°</p>}
             </div>
@@ -743,7 +780,7 @@ useEffect(() => {
             {/* Précipitations */}
             <div className="p-4 bg-white border rounded-lg shadow-md flex flex-col items-center">
               <WiRain size={40} className="text-blue-400" />
-              <h2 className="text-sm font-semibold mt-2">{isForecast ? 'Précipitations (cumul)' : 'Précipitations'}</h2>
+              <h2 className="text-sm font-semibold mt-2">{(isForecast || dayStats) ? 'Précipitations (cumul)' : 'Précipitations'}</h2>
               <p className="text-lg font-bold">{isForecast && forecastStats ? forecastStats.rr1_total : precipitation} mm</p>
             </div>
           </div>
@@ -786,8 +823,8 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Vue graphiques (historique ou prévisions en mode graph) */}
-      {(!isForecast || forecastViewMode === "graph") && (
+      {/* Vue graphiques (historique ou prévisions en mode graph) — réservée admin/scientifique */}
+      {user && isAdminOrSci && (!isForecast || forecastViewMode === "graph") && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
           {(isForecast ? forecastData?.some((data) => data.t_pred) : filteredHistoryData?.some((data) => data.t)) && (
             <div className="bg-white p-4 rounded-lg shadow-md">
@@ -851,8 +888,8 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Vue tableaux (prévisions uniquement) */}
-      {isForecast && forecastViewMode === "table" && forecastData?.length > 0 && (
+      {/* Vue tableaux (prévisions uniquement) — réservée admin/scientifique */}
+      {user && isAdminOrSci && isForecast && forecastViewMode === "table" && forecastData?.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
           {/* Tableau Température */}
           <div className="bg-white p-3 rounded-lg shadow-md overflow-y-auto max-h-[420px]">

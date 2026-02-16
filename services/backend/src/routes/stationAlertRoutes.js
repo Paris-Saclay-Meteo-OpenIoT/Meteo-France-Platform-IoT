@@ -17,31 +17,35 @@ router.get('/history/24h/:stationId', async (req, res) => {
     const pgQuery = `
       SELECT station_id, nom_usuel AS name, lat, lon, date AS reference_time, t, u, ff, dd, rr1
       FROM weather_data
-      WHERE station_id = $1 AND date >= $2
+      WHERE station_id = $1 AND date >= $2 AND EXTRACT(SECOND FROM date) = 0
       ORDER BY date ASC
     `;
-    const result = await pool.query(pgQuery, [stationId, twentyFourHoursAgo]);
+    const pgResult = await pool.query(pgQuery, [stationId, twentyFourHoursAgo]);
+    const pgRows = pgResult.rows || [];
     
-    if (result.rows && result.rows.length > 0) {
-      return res.json(result.rows);
-    }
+    // Compléter avec MongoDB (observations temps réel plus récentes)
+    const mongoSince = pgRows.length > 0
+      ? new Date(pgRows[pgRows.length - 1].reference_time) // après la dernière entrée PG
+      : twentyFourHoursAgo;
     
-    // Fallback MongoDB (observations temps réel — températures en Kelvin)
-    const history = await StationHistory.find({
+    const mongoHistory = await StationHistory.find({
       station_id: stationId,
-      reference_time: { $gte: twentyFourHoursAgo }
+      reference_time: { $gt: mongoSince }
     }).sort({ reference_time: 1 });
     
-    if (history && history.length > 0) {
-      const converted = history.map(h => {
-        const obj = h.toObject ? h.toObject() : { ...h };
-        if (obj.t != null && obj.t > 100) obj.t = parseFloat((obj.t - 273.15).toFixed(2));
-        return obj;
-      });
-      return res.json(converted);
+    const mongoConverted = (mongoHistory || []).map(h => {
+      const obj = h.toObject ? h.toObject() : { ...h };
+      if (obj.t != null && obj.t > 100) obj.t = Number.parseFloat((obj.t - 273.15).toFixed(2));
+      return obj;
+    });
+    
+    const merged = [...pgRows, ...mongoConverted];
+    
+    if (merged.length === 0) {
+      return res.status(404).json({ error: 'Aucune donnée historique trouvée pour ces 24 heures' });
     }
     
-    return res.status(404).json({ error: 'Aucune donnée historique trouvée pour ces 24 heures' });
+    return res.json(merged);
   } catch (error) {
     console.error("Erreur lors de la récupération de l'historique sur 24h:", error);
     res.status(500).json({ error: "Erreur serveur lors de la récupération de l'historique" });
@@ -58,31 +62,35 @@ router.get('/history/7d/:stationId', async (req, res) => {
     const pgQuery = `
       SELECT station_id, nom_usuel AS name, lat, lon, date AS reference_time, t, u, ff, dd, rr1
       FROM weather_data
-      WHERE station_id = $1 AND date >= $2
+      WHERE station_id = $1 AND date >= $2 AND EXTRACT(SECOND FROM date) = 0
       ORDER BY date ASC
     `;
-    const result = await pool.query(pgQuery, [stationId, sevenDaysAgo]);
+    const pgResult = await pool.query(pgQuery, [stationId, sevenDaysAgo]);
+    const pgRows = pgResult.rows || [];
     
-    if (result.rows && result.rows.length > 0) {
-      return res.json(result.rows);
-    }
+    // Compléter avec MongoDB (observations temps réel plus récentes)
+    const mongoSince = pgRows.length > 0
+      ? new Date(pgRows[pgRows.length - 1].reference_time) // après la dernière entrée PG
+      : sevenDaysAgo;
     
-    // Fallback MongoDB (observations temps réel — températures en Kelvin)
     const mongoHistory = await StationHistory.find({
       station_id: stationId,
-      reference_time: { $gte: sevenDaysAgo }
+      reference_time: { $gt: mongoSince }
     }).sort({ reference_time: 1 });
     
-    if (mongoHistory && mongoHistory.length > 0) {
-      const converted = mongoHistory.map(h => {
-        const obj = h.toObject ? h.toObject() : { ...h };
-        if (obj.t != null && obj.t > 100) obj.t = parseFloat((obj.t - 273.15).toFixed(2));
-        return obj;
-      });
-      return res.json(converted);
+    const mongoConverted = (mongoHistory || []).map(h => {
+      const obj = h.toObject ? h.toObject() : { ...h };
+      if (obj.t != null && obj.t > 100) obj.t = Number.parseFloat((obj.t - 273.15).toFixed(2));
+      return obj;
+    });
+    
+    const merged = [...pgRows, ...mongoConverted];
+    
+    if (merged.length === 0) {
+      return res.status(404).json({ error: 'Aucune donnée historique trouvée pour les 7 derniers jours' });
     }
     
-    return res.status(404).json({ error: 'Aucune donnée historique trouvée pour les 7 derniers jours' });
+    return res.json(merged);
   } catch (error) {
     console.error("Erreur lors de la récupération de l'historique sur 7j:", error);
     res.status(500).json({ error: "Erreur serveur lors de la récupération de l'historique" });
@@ -100,31 +108,35 @@ router.get('/history/day/:stationId/:date', async (req, res) => {
     const pgQuery = `
       SELECT station_id, nom_usuel AS name, lat, lon, date AS reference_time, t, u, ff, dd, rr1
       FROM weather_data
-      WHERE station_id = $1 AND date >= $2 AND date <= $3
+      WHERE station_id = $1 AND date >= $2 AND date <= $3 AND EXTRACT(SECOND FROM date) = 0
       ORDER BY date ASC
     `;
-    const result = await pool.query(pgQuery, [stationId, startOfDay, endOfDay]);
+    const pgResult = await pool.query(pgQuery, [stationId, startOfDay, endOfDay]);
+    const pgRows = pgResult.rows || [];
     
-    if (result.rows && result.rows.length > 0) {
-      return res.json(result.rows);
-    }
+    // Compléter avec MongoDB (observations temps réel)
+    const mongoSince = pgRows.length > 0
+      ? new Date(pgRows[pgRows.length - 1].reference_time)
+      : startOfDay;
     
-    // Fallback MongoDB (observations temps réel — températures en Kelvin)
-    const history = await StationHistory.find({
+    const mongoHistory = await StationHistory.find({
       station_id: stationId,
-      reference_time: { $gte: startOfDay, $lte: endOfDay }
+      reference_time: { $gt: mongoSince, $lte: endOfDay }
     }).sort({ reference_time: 1 });
     
-    if (history && history.length > 0) {
-      const converted = history.map(h => {
-        const obj = h.toObject ? h.toObject() : { ...h };
-        if (obj.t != null && obj.t > 100) obj.t = parseFloat((obj.t - 273.15).toFixed(2));
-        return obj;
-      });
-      return res.json(converted);
+    const mongoConverted = (mongoHistory || []).map(h => {
+      const obj = h.toObject ? h.toObject() : { ...h };
+      if (obj.t != null && obj.t > 100) obj.t = Number.parseFloat((obj.t - 273.15).toFixed(2));
+      return obj;
+    });
+    
+    const merged = [...pgRows, ...mongoConverted];
+    
+    if (merged.length === 0) {
+      return res.status(404).json({ error: 'Aucune donnée historique trouvée pour cette date' });
     }
     
-    return res.status(404).json({ error: 'Aucune donnée historique trouvée pour cette date' });
+    return res.json(merged);
   } catch (error) {
     console.error("Erreur lors de la récupération de l'historique pour la date donnée:", error);
     res.status(500).json({ error: "Erreur serveur lors de la récupération de l'historique" });
