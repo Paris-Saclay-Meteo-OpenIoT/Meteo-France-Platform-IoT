@@ -1,0 +1,31 @@
+[
+  [
+    {"station_id": "20004002", "nom": "AJACCIO",       "lat": 41.918,    "lon": 8.792667},
+    {"station_id": "20040004", "nom": "BOCOGNANO",     "lat": 42.104167, "lon": 9.103333},
+    {"station_id": "20047006", "nom": "CALACUCCIA",    "lat": 42.3315,   "lon": 9.0215},
+    {"station_id": "20050001", "nom": "CALVI",         "lat": 42.5295,   "lon": 8.7915},
+    {"station_id": "20092001", "nom": "CONCA",         "lat": 41.717,    "lon": 9.3485},
+    {"station_id": "20093002", "nom": "ILE ROUSSE",    "lat": 42.633333, "lon": 8.9225},
+    {"station_id": "20096008", "nom": "CORTE",         "lat": 42.2885,   "lon": 9.193167},
+    {"station_id": "20114002", "nom": "FIGARI",        "lat": 41.505167, "lon": 9.103667}
+  ],
+  [
+    {"station_id": "20148001", "nom": "BASTIA",              "lat": 42.540667, "lon": 9.485167},
+    {"station_id": "20154001", "nom": "MARIGNANA",           "lat": 42.188833, "lon": 8.655333},
+    {"station_id": "20160001", "nom": "MOCA-CROCE",          "lat": 41.761667, "lon": 9.0165},
+    {"station_id": "20185003", "nom": "OLETTA",              "lat": 42.632333, "lon": 9.3205},
+    {"station_id": "20223001", "nom": "PIETRALBA",           "lat": 42.541,    "lon": 9.172},
+    {"station_id": "20232002", "nom": "PILA-CANALE",         "lat": 41.8145,   "lon": 8.903667},
+    {"station_id": "20254006", "nom": "QUENZA",              "lat": 41.777667, "lon": 9.142833},
+    {"station_id": "20255003", "nom": "QUERCITELLO",         "lat": 42.426833, "lon": 9.332333}
+  ],
+  [
+    {"station_id": "20258001", "nom": "RENNO",                   "lat": 42.190167, "lon": 8.807167},
+    {"station_id": "20268001", "nom": "SAMPOLO",                 "lat": 41.943,    "lon": 9.123},
+    {"station_id": "20270001", "nom": "SARI D'ORCINO",           "lat": 42.0785,   "lon": 8.802333},
+    {"station_id": "20272004", "nom": "SARTENE",                 "lat": 41.652333, "lon": 8.979333},
+    {"station_id": "20303002", "nom": "ALISTRO",                 "lat": 42.259667, "lon": 9.5415},
+    {"station_id": "20314006", "nom": "SANTO PIETRO DI TENDA",   "lat": 42.635833, "lon": 9.200667},
+    {"station_id": "20342001", "nom": "SOLENZARA",               "lat": 41.921833, "lon": 9.400833}
+  ]
+]

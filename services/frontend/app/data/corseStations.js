@@ -14,21 +14,6 @@ const corseStations = [{
     }
 },
  {
-    "geometry": { "type": "Point", "coordinates": [8.618167, 41.908333] },
-    "type": "Feature",
-    "properties": {
-        "COMMUNE": "AJACCIO",
-        "NUM_POSTE": "20004003",
-        "ALTI": 124,
-        "NOM_USUEL": "AJACCIO-PARATA",
-        "LAT_DG": 41.908333,
-        "NUM_DEP": 20,
-        "LON_DG": 8.618167,
-        "ficheClimComplete": 0,
-        "ficheClimReduite": 1
-    }
-},
- {
     "geometry": { "type": "Point", "coordinates": [8.720833, 41.9385] },
     "type": "Feature",
     "properties": {

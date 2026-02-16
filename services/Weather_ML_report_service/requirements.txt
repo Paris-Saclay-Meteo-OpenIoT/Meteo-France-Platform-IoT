@@ -3,7 +3,10 @@ numpy
 scikit-learn
 sqlalchemy
 psycopg2-binary
+pymongo
+httpx
 matplotlib
 contextily
 schedule
 requests
+python-dotenv

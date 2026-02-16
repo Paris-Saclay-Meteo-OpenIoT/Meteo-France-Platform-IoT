@@ -38,3 +38,53 @@ CREATE TABLE IF NOT EXISTS role_request (
       ON DELETE CASCADE,
     CONSTRAINT status_valid CHECK (status IN ('pending', 'accepted', 'refused'))
 );
+
+-- Création de la table weather_data pour les données historiques
+CREATE TABLE IF NOT EXISTS weather_data (
+    id SERIAL PRIMARY KEY,
+    station_id VARCHAR(50),
+    nom_usuel VARCHAR(255),
+    lat FLOAT,          -- Latitude
+    lon FLOAT,          -- Longitude
+    date TIMESTAMP,
+    t FLOAT,           -- Température
+    u FLOAT,           -- Humidité
+    ff FLOAT,          -- Vitesse du vent
+    dd INT,            -- Direction du vent
+    rr1 FLOAT,         -- Précipitations
+    n FLOAT,           -- Nébulosité
+    vis INT,           -- Visibilité
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(station_id, date)
+);
+
+-- Index pour les requêtes fréquentes
+CREATE INDEX IF NOT EXISTS idx_weather_station ON weather_data(station_id);
+CREATE INDEX IF NOT EXISTS idx_weather_date ON weather_data(date);
+CREATE INDEX IF NOT EXISTS idx_weather_station_date ON weather_data(station_id, date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_weather_nom_station_date ON weather_data(nom_usuel, station_id, date);
+
+-- Création de la table forecast_results pour les prédictions ML
+CREATE TABLE IF NOT EXISTS forecast_results (
+    id SERIAL PRIMARY KEY,
+    station VARCHAR(50),
+    station_id VARCHAR(50),
+    lat FLOAT,          -- Latitude
+    lon FLOAT,          -- Longitude
+    forecast_time TIMESTAMP,
+    forecast_date DATE,
+    t_pred FLOAT,      -- Température prédite
+    ff_pred FLOAT,     -- Vent prédit
+    rr1_pred FLOAT,    -- Précipitations prédites
+    u_pred FLOAT,      -- Humidité prédite
+    model_version VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(station_id, forecast_time)
+);
+
+-- Index pour les requêtes fréquentes
+CREATE INDEX IF NOT EXISTS idx_forecast_station ON forecast_results(station);
+CREATE INDEX IF NOT EXISTS idx_forecast_station_id ON forecast_results(station_id);
+CREATE INDEX IF NOT EXISTS idx_forecast_time ON forecast_results(forecast_time);
+CREATE INDEX IF NOT EXISTS idx_forecast_date ON forecast_results(forecast_date);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_forecast_station_time ON forecast_results(station, forecast_time);

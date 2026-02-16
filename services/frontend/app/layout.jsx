@@ -19,12 +19,12 @@ export default function RootLayout({ children }) {
       </head>
       <body className="flex flex-col min-h-screen">
         <AuthProvider>
-        <NavbarFooterWrapper>
-          <main className="flex-1 flex items-center justify-center">
-            {children}
-          </main>
-        </NavbarFooterWrapper>
-        <ToastContainer /> 
+          <NavbarFooterWrapper>
+            <main className="flex-1 flex items-center justify-center">
+              {children}
+            </main>
+          </NavbarFooterWrapper>
+          <ToastContainer /> 
         </AuthProvider>
       </body>
     </html>
