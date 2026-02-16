@@ -9,7 +9,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
-import pickle
+import json
+import joblib
 from typing import Dict, Tuple, Optional
 import argparse
 import warnings
@@ -22,66 +23,73 @@ warnings.filterwarnings('ignore')
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 STATION_ID = 20004002
 SEP = ";"
+GOOD_Q_VALUES = {0, 1, 9} 
 
 
 # =========================
 # TCN model definition (must match training architecture)
 # =========================
-class CausalConv1d(torch.nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size, dilation=1):
+class Chomp1d(nn.Module):
+    """
+    remove padded future part to keep causality
+    """
+    def __init__(self, chomp_size: int):
         super().__init__()
-        self.pad = (kernel_size - 1) * dilation
-        self.conv = torch.nn.Conv1d(in_ch, out_ch, kernel_size, padding=0, dilation=dilation)
-    
+        self.chomp_size = chomp_size
+
     def forward(self, x):
-        x = torch.nn.functional.pad(x, (self.pad, 0))
-        return self.conv(x)
+        return x[:, :, :-self.chomp_size] if self.chomp_size > 0 else x
 
 
-class TemporalBlock(torch.nn.Module):
-    def __init__(self, in_ch, out_ch, kernel_size, dilation, dropout=0.1):
+class TemporalBlock(nn.Module):
+    """
+    TCN temporal block
+    """
+    def __init__(self, n_in: int, n_out: int, kernel_size: int, dilation: int, dropout: float = 0.1):
         super().__init__()
-        self.conv1 = CausalConv1d(in_ch, out_ch, kernel_size, dilation)
-        self.relu1 = torch.nn.ReLU()
-        self.drop1 = torch.nn.Dropout(dropout)
-        
-        self.conv2 = CausalConv1d(out_ch, out_ch, kernel_size, dilation)
-        self.relu2 = torch.nn.ReLU()
-        self.drop2 = torch.nn.Dropout(dropout)
-        
-        self.downsample = torch.nn.Conv1d(in_ch, out_ch, 1) if in_ch != out_ch else None
-    
-    def forward(self, x):
-        out = self.drop1(self.relu1(self.conv1(x)))
-        out = self.drop2(self.relu2(self.conv2(out)))
-        res = x if self.downsample is None else self.downsample(x)
-        return out + res
+        padding = (kernel_size - 1) * dilation
 
+        self.conv1 = nn.Conv1d(n_in, n_out, kernel_size, padding=padding, dilation=dilation)
+        self.chomp1 = Chomp1d(padding)
+        self.relu1  = nn.ReLU()
+        self.drop1  = nn.Dropout(dropout)
+
+        self.conv2 = nn.Conv1d(n_out, n_out, kernel_size, padding=padding, dilation=dilation)
+        self.chomp2 = Chomp1d(padding)
+        self.relu2  = nn.ReLU()
+        self.drop2  = nn.Dropout(dropout)
+
+        self.down = nn.Conv1d(n_in, n_out, 1) if n_in != n_out else None
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        out = self.drop1(self.relu1(self.chomp1(self.conv1(x))))
+        out = self.drop2(self.relu2(self.chomp2(self.conv2(out))))
+        res = x if self.down is None else self.down(x)
+        return self.relu(out + res)
+    
 
 class TCNForecaster(nn.Module):
-    def __init__(self, in_channels: int, horizon: int,
-                 hidden_channels: int = 64, levels: int = 6,
+    """
+    temprature_forecast.ipynb's TCN, input (B,L,C)
+    """
+    def __init__(self, n_features: int, horizon: int,
+                 channels=(64, 64, 64, 64, 64, 64),  # default 6, read from meta
                  kernel_size: int = 3, dropout: float = 0.1):
         super().__init__()
         layers = []
-        ch = in_channels
-        for i in range(levels):
-            layers.append(TemporalBlock(ch, hidden_channels, kernel_size, 2**i, dropout))
-            ch = hidden_channels
+        in_ch = n_features
+        for i, out_ch in enumerate(channels):
+            layers.append(TemporalBlock(in_ch, out_ch, kernel_size, dilation=2**i, dropout=dropout))
+            in_ch = out_ch
         self.tcn = nn.Sequential(*layers)
-        self.head = nn.Linear(hidden_channels, horizon)
+        self.head = nn.Linear(in_ch, horizon)
 
     def forward(self, x):
-        h = self.tcn(x)        # [B, hidden, L]
-        h_last = h[:, :, -1]   # [B, hidden]
-        return self.head(h_last)  # [B, H]
-    
-FEATURE_COLS = [
-    "temperature", "rainfall", "cloud_cover",
-    "wind_speed", "humidity", "pressure",
-    "rainfall_3h", "hour_sin", "hour_cos",
-    "doy_sin", "doy_cos"
-]
+        x = x.transpose(1, 2)      # (B,L,C)->(B,C,L)
+        z = self.tcn(x)            # (B,hidden,L)
+        last = z[:, :, -1]         # (B,hidden)
+        return self.head(last)     # (B,H)
 
 # =========================
 # NWP quality check
@@ -149,63 +157,166 @@ def load_nwp_future(csv_nwp_future: str) -> pd.DataFrame:
 # =========================
 # TCN fallback prediction
 # =========================
-def pure_tcn_predict(csv_obs, horizon_hours, input_hours,
-                     model_path, scalers_path):
+def load_TCN_model(model_path: str, scaler_path: str, meta_path: str):
+    """
+    load temperatur_forecast.ipynb's outputs (weights/scaler/meta)
+    """
+    if not (os.path.exists(model_path) and os.path.exists(scaler_path) and os.path.exists(meta_path)):
+        raise FileNotFoundError(f"Need model/scaler/meta: {model_path}, {scaler_path}, {meta_path}")
 
-    df_obs = pd.read_csv(csv_obs, sep=SEP)
-    df_obs["AAAAMMJJHH"] = pd.to_datetime(df_obs["AAAAMMJJHH"].astype(str), format="%Y%m%d%H")
-    df_obs = df_obs[df_obs["NUM_POSTE"] == STATION_ID].copy()
+    with open(meta_path, "r", encoding="utf-8") as f:
+        meta = json.load(f)
 
-    df_obs = df_obs.rename(columns={
-        "AAAAMMJJHH": "time",
-        "T": "temperature",
-        "RR1": "rainfall",
-        "N": "cloud_cover",
-        "FF": "wind_speed",
-        "U": "humidity",
-        "PSTAT": "pressure"
-    }).sort_values("time").set_index("time")
+    scaler = joblib.load(scaler_path)  # StandardScaler
 
-    df_obs["rainfall"] = df_obs["rainfall"].fillna(0.0)
-
-    for c in ["temperature", "cloud_cover", "wind_speed", "humidity", "pressure"]:
-        df_obs[c] = df_obs[c].interpolate(method="time", limit_direction="both")
-
-    df_obs["rainfall_3h"] = df_obs["rainfall"].rolling(3, min_periods=1).sum()
-
-    idx = df_obs.index
-    df_obs["hour_sin"] = np.sin(2*np.pi*idx.hour/24.0)
-    df_obs["hour_cos"] = np.cos(2*np.pi*idx.hour/24.0)
-    df_obs["doy_sin"]  = np.sin(2*np.pi*idx.dayofyear/365.25)
-    df_obs["doy_cos"]  = np.cos(2*np.pi*idx.dayofyear/365.25)
-
-    model = TCNForecaster(in_channels=len(FEATURE_COLS),
-                          horizon=horizon_hours).to(DEVICE)
-    model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+    hparams = meta["tcn_hparams"]
+    model = TCNForecaster(
+        n_features=len(meta["model_features"]),
+        horizon=int(meta["horizon"]),
+        channels=tuple(hparams["channels"]),          # matches 6-level model
+        kernel_size=int(hparams["kernel_size"]),
+        dropout=float(hparams["dropout"])
+    ).to(DEVICE)
+    state = torch.load(model_path, map_location=DEVICE)
+    model.load_state_dict(state)
     model.eval()
 
-    with open(scalers_path, "rb") as f:
-        scalers = pickle.load(f)
+    col_median = np.array(meta["col_median"], dtype=np.float32)
+    feature_cols = meta["model_features"]
+    return model, scaler, col_median, feature_cols, meta
 
-    last_block = df_obs[FEATURE_COLS].iloc[-input_hours:].copy()
 
-    for c in FEATURE_COLS:
-        last_block[[c]] = scalers[c].transform(last_block[[c]])
+def qc_by_flag_optional(df: pd.DataFrame, var: str, good_values={0, 1, 9}) -> None:
+    """
+    apply QC only if Q-column exists
+    """
+    qvar = "Q" + var
+    if var in df.columns and qvar in df.columns:
+        bad = df[qvar].isna() | (~df[qvar].isin(list(good_values)))
+        df.loc[bad, var] = np.nan
 
-    x = torch.tensor(last_block.values.T,
-                     dtype=torch.float32).unsqueeze(0).to(DEVICE)
 
+def build_TCN_features(df_obs: pd.DataFrame,
+                               feature_cols: list,
+                               lookback_hours: int,
+                               forecast_start_time: pd.Timestamp) -> pd.DataFrame:
+    """
+    TCN feature pipeline
+    """
+    df = df_obs.copy()
+
+    # 1) infer base variables from *_miss
+    base_vars = [c[:-5] for c in feature_cols if c.endswith("_miss")]
+    base_vars = list(dict.fromkeys(base_vars))
+
+    # 2) QC if possible
+    for v in base_vars:
+        qc_by_flag_optional(df, v, good_values=GOOD_Q_VALUES)
+
+    # 3) physical checks (T/RR1)
+    if "T" in df.columns:
+        df.loc[(df["T"] < -40) | (df["T"] > 55), "T"] = np.nan
+        jump = df["T"].diff().abs()
+        df.loc[jump > 10.0, "T"] = np.nan
+    if "RR1" in df.columns:
+        df.loc[df["RR1"] < 0, "RR1"] = np.nan
+
+    # 4) align to forecast start
+    t0 = pd.to_datetime(forecast_start_time, utc=True)
+    start = t0 - pd.Timedelta(hours=lookback_hours)
+    end   = t0 - pd.Timedelta(hours=1)
+    full_idx = pd.date_range(start, end, freq="h", tz="UTC")
+    df = df.reindex(full_idx)
+
+    # 5) time cyclic features
+    df["hour_sin"] = np.sin(2*np.pi*df.index.hour/24.0)
+    df["hour_cos"] = np.cos(2*np.pi*df.index.hour/24.0)
+    df["doy_sin"]  = np.sin(2*np.pi*df.index.dayofyear/365.25)
+    df["doy_cos"]  = np.cos(2*np.pi*df.index.dayofyear/365.25)
+
+    # 6) wind vector
+    if "DD" in df.columns:
+        dd_rad = np.deg2rad(df["DD"])
+        df["DD_sin"] = np.sin(dd_rad)
+        df["DD_cos"] = np.cos(dd_rad)
+    if "FF" in df.columns and "DD_sin" in df.columns:
+        df["wind_u"] = df["FF"] * df["DD_sin"]
+        df["wind_v"] = df["FF"] * df["DD_cos"]
+
+    # 7) missing masks before filling
+    for v in base_vars:
+        if v not in df.columns:
+            df[v] = np.nan
+            df[f"{v}_miss"] = 1.0
+        else:
+            df[f"{v}_miss"] = df[v].isna().astype("float32")
+
+    # 8) fill missing like StageA
+    for v in base_vars:
+        df[v] = df[v].interpolate(method="time", limit=3)
+        df[v] = df[v].ffill(limit=12).bfill(limit=12)
+
+    # 9) ensure all features exist
+    for c in feature_cols:
+        if c not in df.columns:
+            df[c] = np.nan
+
+    return df[feature_cols]
+
+
+def pure_tcn_predict(csv_obs: str,
+                     horizon_hours: int,
+                     input_hours: int,
+                     model_path: str,
+                     scalers_path: str,
+                     meta_path: str,
+                     forecast_start_time: Optional[pd.Timestamp] = None) -> np.ndarray:
+    """
+    pure TCN fallback (output in °C, no inverse_transform)
+    """
+    model, scaler, col_median, feature_cols, meta = load_TCN_model(model_path, scalers_path, meta_path)
+
+    # load observations
+    df_obs = pd.read_csv(csv_obs, sep=SEP)
+    df_obs["AAAAMMJJHH"] = pd.to_datetime(df_obs["AAAAMMJJHH"].astype(str), format="%Y%m%d%H", errors="coerce", utc=True)
+    df_obs = df_obs[df_obs["NUM_POSTE"] == STATION_ID].copy()
+    df_obs = df_obs.sort_values("AAAAMMJJHH").set_index("AAAAMMJJHH")
+
+    # align forecast start to NWP start if provided
+    if forecast_start_time is None:
+        forecast_start_time = df_obs.index.max() + pd.Timedelta(hours=1)
+
+    feat_df = build_TCN_features(
+        df_obs=df_obs,
+        feature_cols=feature_cols,
+        lookback_hours=input_hours,
+        forecast_start_time=forecast_start_time
+    )
+
+    X2 = feat_df.values.astype(np.float32)        # (L,C)
+
+    # Fill remaining NaNs with train medians
+    nan_mask = np.isnan(X2)
+    if nan_mask.any():
+        cols = np.where(nan_mask)[1]
+        X2[nan_mask] = col_median[cols]
+
+    # scale with single StandardScaler
+    X2s = scaler.transform(X2).astype(np.float32)
+
+    # model input (B,L,C)
+    x = torch.tensor(X2s[None, :, :], dtype=torch.float32).to(DEVICE)
     with torch.no_grad():
-        y_scaled = model(x).cpu().numpy().reshape(-1,1)
+        y = model(x).cpu().numpy().reshape(-1)    # (H,)
 
-    return scalers["temperature"].inverse_transform(y_scaled).reshape(-1)
+    return y[:horizon_hours]
 
 
 # =========================
 # Main production forecast
 # =========================
 def production_forecast(csv_obs: str, csv_nwp_future: str,
-                       tcn_model_path: str, tcn_scalers_path: str,
+                       tcn_model_path: str, tcn_scalers_path: str, tcn_meta_path: str,
                        input_days: int = 7, horizon_days: int = 7,
                        nwp_missing_threshold: float = 0.1) -> pd.DataFrame:
     """
@@ -261,17 +372,21 @@ def production_forecast(csv_obs: str, csv_nwp_future: str,
     else:
         print("\nDecision: Fallback to Pure TCN temperature model")
 
-        if not os.path.exists(tcn_model_path) or not os.path.exists(tcn_scalers_path):
+        if (not os.path.exists(tcn_model_path)) or (not os.path.exists(tcn_scalers_path)) or (not os.path.exists(tcn_meta_path)):
             raise FileNotFoundError(
-                f"Pure TCN model not found: need {tcn_model_path} and {tcn_scalers_path}"
+                f"Pure TCN model not found: need {tcn_model_path} and {tcn_scalers_path} and {tcn_meta_path}"
             )
 
+        forecast_start = pd.to_datetime(df_nwp_future["time"].iloc[0], utc=True)
+
         temp_pred = pure_tcn_predict(
-            csv_obs,
-            horizon_hours,
-            input_hours,
-            tcn_model_path,
-            tcn_scalers_path
+            csv_obs=csv_obs,
+            horizon_hours=horizon_hours,
+            input_hours=input_hours,
+            model_path=tcn_model_path,
+            scalers_path=tcn_scalers_path,
+            meta_path=tcn_meta_path,
+            forecast_start_time=forecast_start
         )
 
         df_result = df_nwp_future[["time"]].copy()
@@ -297,7 +412,7 @@ def production_forecast(csv_obs: str, csv_nwp_future: str,
 # Hybrid forecast (partial NWP missing)
 # =========================
 def hybrid_forecast(csv_obs, csv_nwp_future,
-                    tcn_model_path, tcn_scalers_path,
+                    tcn_model_path, tcn_scalers_path,tcn_meta_path,
                     input_days=7, horizon_days=7):
 
     input_hours = input_days * 24
@@ -317,12 +432,15 @@ def hybrid_forecast(csv_obs, csv_nwp_future,
     print("Using Pure TCN for missing timestamps")
 
     # predict with TCN for missing timestamps
+    forecast_start = pd.to_datetime(df_nwp_future["time"].iloc[0], utc=True)
     temp_pred = pure_tcn_predict(
-        csv_obs,
-        horizon_hours,
-        input_hours,
-        tcn_model_path,
-        tcn_scalers_path
+        csv_obs=csv_obs,
+        horizon_hours=horizon_hours,
+        input_hours=input_hours,
+        model_path=tcn_model_path,
+        scalers_path=tcn_scalers_path,
+        meta_path=tcn_meta_path,
+        forecast_start_time=forecast_start
     )
 
     df_result.loc[missing_mask, "temperature_forecast"] = temp_pred[missing_mask]
@@ -330,7 +448,7 @@ def hybrid_forecast(csv_obs, csv_nwp_future,
     df_result.loc[~missing_mask, "forecast_method"] = "NWP"
 
     df_result["confidence"] = "high"
-    df_result.loc[missing_mask, "confidence"] = "medium"
+    df_result.loc[missing_mask, "temperature_forecast"] = temp_pred[missing_mask]
 
     return df_result.head(horizon_hours)
 
@@ -367,8 +485,10 @@ def main():
     parser.add_argument("--csv_nwp_future", type=str, default="NWP_future_20004002.csv")
     parser.add_argument("--tcn_model", type=str, default="tcn_temperature.pt",
                        help="TCN model file path")
-    parser.add_argument("--tcn_scalers", type=str, default="tcn_scalers.pkl",
-                       help="TCN scalers file path")
+    parser.add_argument("--tcn_scalers", type=str, default="./point_weights/scaler.joblib",
+                       help="temperature_forecast's scaler.joblib path (StandardScaler)")
+    parser.add_argument("--tcn_meta", type=str, default="./point_weights/meta.json",
+                       help="temperature_forecast's meta.json path (features/medians/hparams)")
     parser.add_argument("--input_days", type=int, default=7)
     parser.add_argument("--horizon_days", type=int, default=7)
     parser.add_argument("--output", type=str, default="forecast_production.csv")
@@ -385,7 +505,7 @@ def main():
             # Automatic mode: Determines whether to use NWP or TCN.
             df_forecast = production_forecast(
                 args.csv_obs, args.csv_nwp_future,
-                args.tcn_model, args.tcn_scalers,
+                args.tcn_model, args.tcn_scalers,args.tcn_meta,
                 args.input_days, args.horizon_days,
                 args.nwp_threshold
             )
@@ -393,7 +513,7 @@ def main():
             # Hybrid mode: decide per timestamp whether to use NWP or TCN
             df_forecast = hybrid_forecast(
                 args.csv_obs, args.csv_nwp_future,
-                args.tcn_model, args.tcn_scalers,
+                args.tcn_model, args.tcn_scalers,args.tcn_meta,
                 args.input_days, args.horizon_days
             )
         

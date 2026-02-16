@@ -8,6 +8,7 @@ RUN pip install --no-cache-dir \
     pandas \
     requests \
     torch \
-    schedule
+    schedule \
+    joblib
 
 CMD ["python", "scheduler.py"]
