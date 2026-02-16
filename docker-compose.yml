@@ -452,6 +452,18 @@ services:
       timeout: 5s
       retries: 3
 
+  ai_trainer:
+    build: ./services/ai_trainer
+    container_name: ter_ai_trainer
+    volumes:
+      - ./services/ai_trainer:/app
+      - ./AI:/app/AI
+    networks:
+      - pipeline-net
+    restart: always
+    dns:
+      - 8.8.8.8
+
 
   weather_ml_service:
     build: ./services/WEATHER_ML_REPORT_SERVICE
@@ -472,7 +484,7 @@ services:
       context: ./services/backend
     container_name: ter_backend
     ports:
-      - "5000:5000" 
+      - "5001:5000" 
     
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
