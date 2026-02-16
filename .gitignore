@@ -10,4 +10,5 @@ node_modules
 
 # Test
 .pytest_cache
-__pycache__
+__pycache__services/ai_trainer/*.csv
+services/ai_trainer/*.gz
