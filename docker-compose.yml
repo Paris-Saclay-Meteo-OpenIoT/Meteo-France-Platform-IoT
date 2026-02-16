@@ -513,6 +513,17 @@ services:
     networks:
       - pipeline-net
 
+
+  weather_ml_service:
+    build: ./services/WEATHER_ML_REPORT_SERVICE
+    container_name: weather_ml_report
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pipeline-net  
+    restart: always
+    
   #-------------------------------------------------------
   # Client web
   #-------------------------------------------------------
