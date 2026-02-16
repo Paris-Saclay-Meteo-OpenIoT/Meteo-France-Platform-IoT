@@ -515,8 +515,14 @@ services:
 
 
   weather_ml_service:
-    build: ./services/WEATHER_ML_REPORT_SERVICE
+    build: ./services/Weather_ML_report_service # -- Unix case sensitive
     container_name: weather_ml_report
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
     depends_on:
       postgres:
         condition: service_healthy

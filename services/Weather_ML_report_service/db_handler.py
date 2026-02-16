@@ -5,7 +5,18 @@ from config import DB_URI
 engine = create_engine(DB_URI)
 
 def get_weather_data():
-    query = "SELECT * FROM weather_data ORDER BY date DESC"
+    # -- Fix Mongo query => Postgres SQL query
+    query = """
+        SELECT 
+            m.*, 
+            s.lat,
+            s.lon,
+            s.name AS nom_usuel, 
+            m.reference_time AS date
+        FROM weather_measurements m
+        JOIN stations s ON m.station_id = s.station_id
+        ORDER BY m.reference_time DESC
+    """
     with engine.connect() as conn:
         df = pd.read_sql(text(query), conn)
         df.columns = [c.lower() for c in df.columns]

@@ -4,7 +4,7 @@ from ml_engine import run_ml_pipeline
 from viz_engine import generate_global_maps, generate_station_charts
 from notifier import send_personalized_email
 
-def main():
+def run_pipeline():
     customers = pd.read_csv('customers.csv')
     df_brut = get_weather_data()
     
@@ -28,4 +28,4 @@ def main():
         )
 
 if __name__ == "__main__":
-    main()
+    run_pipeline() # -- Fix call

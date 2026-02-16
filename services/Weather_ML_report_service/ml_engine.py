@@ -6,6 +6,14 @@ from datetime import datetime, timedelta
 
 def run_ml_pipeline(df):
     df['date'] = pd.to_datetime(df['date'])
+
+    df['date'] = pd.to_datetime(df['date'])
+    
+    # --- fix NaN
+    for col in ['t', 'ff', 'rr1', 'u']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.fillna(0)
+
     df = df.dropna().copy()
     le = LabelEncoder()
     df['SID'] = le.fit_transform(df['nom_usuel'])
