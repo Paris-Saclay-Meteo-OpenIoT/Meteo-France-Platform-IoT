@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import logging
+import hashlib
+import os
+import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import LabelEncoder
 from datetime import datetime, timedelta, timezone
@@ -8,6 +11,7 @@ from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 PARIS_TZ = ZoneInfo('Europe/Paris')
+MODEL_DIR = '/tmp/ml_models'
 
 def run_ml_pipeline(df, station_mapping=None, target_stations=None):
     """
@@ -77,7 +81,7 @@ def run_ml_pipeline(df, station_mapping=None, target_stations=None):
     if 'lon' not in df.columns:
         df['lon'] = 0.0
     
-    coords_map = df[['nom_usuel', 'lat', 'lon']].drop_duplicates().set_index('nom_usuel')
+    coords_map = df.groupby('nom_usuel')[['lat', 'lon']].first()
     features = ['SID', 't', 'u', 'ff']
     stations = df['nom_usuel'].unique()
     
@@ -119,9 +123,19 @@ def run_ml_pipeline(df, station_mapping=None, target_stations=None):
         logger.info(f"   📚 Ensemble d'entraînement: {len(X_train)} échantillons")
         
         try:
-            model = RandomForestRegressor(n_estimators=50, n_jobs=-1, random_state=42)
-            model.fit(X_train, y_train)
-            logger.info("   ✅ Modèle entraîné avec succès (RandomForest 50 estimators)")
+            # Vérifier si un modèle en cache existe pour ces données
+            os.makedirs(MODEL_DIR, exist_ok=True)
+            data_hash = hashlib.md5(pd.util.hash_pandas_object(X_train).values.tobytes()).hexdigest()[:12]
+            model_path = os.path.join(MODEL_DIR, f'model_{target_col}_{data_hash}.joblib')
+            
+            if os.path.exists(model_path):
+                model = joblib.load(model_path)
+                logger.info(f"   ✅ Modèle chargé depuis le cache ({target_col})")
+            else:
+                model = RandomForestRegressor(n_estimators=50, n_jobs=-1, random_state=42)
+                model.fit(X_train, y_train)
+                joblib.dump(model, model_path)
+                logger.info("   ✅ Modèle entraîné et sauvegardé (RandomForest 50 estimators)")
             
             # Générer les prédictions pour chaque station
             for station in stations:
@@ -138,16 +152,23 @@ def run_ml_pipeline(df, station_mapping=None, target_stations=None):
                     found = False
                     for row in all_rows:
                         if row['station'] == station_id and row['forecast_time'] == forecast_time:
-                            row[f'{target_col.lower()}_pred'] = round(val, 2)
+                            row[f'{target_col.lower()}_pred'] = round(float(val), 2)
                             found = True
                             break
                     if not found:
+                        lat_val = coords_map.loc[station, 'lat']
+                        lon_val = coords_map.loc[station, 'lon']
+                        # S'assurer que ce sont des scalaires Python natifs
+                        if hasattr(lat_val, 'item'):
+                            lat_val = float(lat_val.item())
+                        if hasattr(lon_val, 'item'):
+                            lon_val = float(lon_val.item())
                         all_rows.append({
                             'station': station_id,
                             'forecast_time': forecast_time,
-                            'lat': coords_map.loc[station, 'lat'], 
-                            'lon': coords_map.loc[station, 'lon'], 
-                            f'{target_col.lower()}_pred': round(val, 2)
+                            'lat': float(lat_val), 
+                            'lon': float(lon_val), 
+                            f'{target_col.lower()}_pred': round(float(val), 2)
                         })
         except Exception as e:
             logger.error(f"   ❌ Erreur lors de l'entraînement du modèle {target_col}: {e}", exc_info=True)

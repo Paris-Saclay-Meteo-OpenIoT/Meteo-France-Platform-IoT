@@ -64,24 +64,44 @@ def save_predictions(df):
             logger.info("   📋 Vérification/création de la table forecast_results...")
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS forecast_results (
-                    station TEXT,
+                    id SERIAL,
+                    station VARCHAR(50),
+                    station_id VARCHAR(50),
                     forecast_time TIMESTAMP,
+                    forecast_date DATE,
                     lat FLOAT,
                     lon FLOAT,
                     t_pred FLOAT,
                     ff_pred FLOAT,
                     rr1_pred FLOAT,
                     u_pred FLOAT DEFAULT NULL,
-                    PRIMARY KEY (station, forecast_time)
+                    model_version VARCHAR(50) DEFAULT NULL,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    UNIQUE(station, forecast_time)
                 );
             """))
             
             # Sauvegarder les prédictions
             logger.info("   ⏳ Insertion des prédictions...")
-            df.to_sql('temp_forecast', conn, if_exists='replace', index=False)
             
-            # Upsert (insert or update) - construire dynamiquement basé sur les colonnes disponibles
-            available_cols = df.columns.tolist()
+            # Convertir les types numpy/Series en types Python natifs pour psycopg2
+            df_clean = df.copy()
+            for col in ['lat', 'lon', 't_pred', 'ff_pred', 'rr1_pred', 'u_pred']:
+                if col in df_clean.columns:
+                    df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').astype(float)
+            if 'station' in df_clean.columns:
+                df_clean['station'] = df_clean['station'].astype(str)
+            
+            # Ajouter station_id (= station) et forecast_date si absents
+            if 'station_id' not in df_clean.columns and 'station' in df_clean.columns:
+                df_clean['station_id'] = df_clean['station']
+            if 'forecast_date' not in df_clean.columns and 'forecast_time' in df_clean.columns:
+                df_clean['forecast_date'] = pd.to_datetime(df_clean['forecast_time']).dt.date
+            
+            df_clean.to_sql('temp_forecast', conn, if_exists='replace', index=False)
+            
+            # Upsert (insert or update) - construire dynamiquement basé sur les colonnes nettoyées
+            available_cols = df_clean.columns.tolist()
             columns_str = ', '.join(available_cols)
             select_str = ', '.join(available_cols)
             update_str = ', '.join([f"{col} = EXCLUDED.{col}" for col in available_cols if col not in ['station', 'forecast_time']])

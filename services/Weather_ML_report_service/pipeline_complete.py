@@ -78,10 +78,10 @@ def run_full_pipeline(target_stations=None, region=None):
                 now = datetime.utcnow()
                 
                 if count < 5000:
-                    # Première exécution : récupérer 12 mois d'historique
+                    # Première exécution : récupérer 3 mois d'historique (suffisant pour le ML)
                     logger.info(f"   📊 Seulement {count} enregistrements en base"
-                                " — lancement de la récupération historique (12 mois)")
-                    asyncio.run(main_async(months=12))
+                                " — lancement de la récupération historique (3 mois)")
+                    asyncio.run(main_async(months=3))
                 elif max_date and (now - max_date).total_seconds() > 24 * 3600:
                     # Données obsolètes : récupérer le dernier mois pour combler le gap
                     days_behind = (now - max_date).days
