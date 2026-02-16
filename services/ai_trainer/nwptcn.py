@@ -453,12 +453,47 @@ def hybrid_forecast(csv_obs, csv_nwp_future,
     return df_result.head(horizon_hours)
 
 
+# =========================
+# Rain level classification 
+# =========================
+def compute_rain_levels(df):
+    #basic probability
+    P_rain = df["rain_probability"] / 100.0
+
+    df["P_rain"] = P_rain
+    df["P_moderate"] = np.where(
+        df["rain_mm"] >= 2.5,
+        P_rain,
+        0.0
+    )
+    df["P_heavy"] = np.where(
+        df["rain_mm"] >= 7.6,
+        P_rain,
+        0.0
+    )
+
+    # labels
+    def classify(r):
+        if r < 0.1:
+            return "No rain"
+        elif r < 2.5:
+            return "Light rain"
+        elif r < 7.6:
+            return "Moderate rain"
+        else:
+            return "Heavy rain"
+
+    df["rain_label"] = df["rain_mm"].apply(classify)
+
+    return df
+
+
 def update_nwp_forecast(lat=41.918, lon=8.792667, days=7):
     import requests
     url = (
         f"https://api.open-meteo.com/v1/forecast?"
         f"latitude={lat}&longitude={lon}&"
-        f"hourly=temperature_2m,precipitation&"
+        f"hourly=temperature_2m,precipitation,precipitation_probability&"
         f"forecast_days={days}&timezone=GMT"
     )
     r = requests.get(url, timeout=10)
@@ -468,12 +503,16 @@ def update_nwp_forecast(lat=41.918, lon=8.792667, days=7):
         "time": pd.to_datetime(data["hourly"]["time"]),
         "t2m_nwp": data["hourly"]["temperature_2m"],
         "rain_mm": data["hourly"]["precipitation"],
+        "rain_probability": data["hourly"]["precipitation_probability"],
     })
 
     df["rain_flag"] = (df["rain_mm"] >= 0.1).astype(int)
+    df = compute_rain_levels(df)
 
     df.to_csv("NWP_future_20004002.csv", index=False)
-    print("✓ NWP forecast updated")
+    print("NWP forecast updated")
+
+
 
 
 # =========================
@@ -483,7 +522,7 @@ def main():
     parser = argparse.ArgumentParser(description="Production-level temperature prediction system")
     parser.add_argument("--csv_obs", type=str, default="H_20_latest-2025-2026.csv")
     parser.add_argument("--csv_nwp_future", type=str, default="NWP_future_20004002.csv")
-    parser.add_argument("--tcn_model", type=str, default="tcn_temperature.pt",
+    parser.add_argument("--tcn_model", type=str, default="./point_weights/tcn_temperature.pt",
                        help="TCN model file path")
     parser.add_argument("--tcn_scalers", type=str, default="./point_weights/scaler.joblib",
                        help="temperature_forecast's scaler.joblib path (StandardScaler)")

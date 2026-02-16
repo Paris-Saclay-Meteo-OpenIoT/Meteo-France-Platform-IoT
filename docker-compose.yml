@@ -455,6 +455,8 @@ services:
   ai_trainer:
     build: ./services/ai_trainer
     container_name: ter_ai_trainer
+    volumes:
+      - ./services/ai_trainer:/app
     networks:
       - pipeline-net
     restart: always
