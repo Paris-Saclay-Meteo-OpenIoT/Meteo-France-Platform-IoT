@@ -513,6 +513,17 @@ services:
     networks:
       - pipeline-net
 
+  ai_trainer:
+    build: ./services/ai_trainer
+    container_name: ter_ai_trainer
+    volumes:
+      - ./services/ai_trainer:/app
+    networks:
+      - pipeline-net
+    restart: always
+    dns:
+      - 8.8.8.8
+
 
   weather_ml_service:
     build: ./services/Weather_ML_report_service # -- Unix case sensitive

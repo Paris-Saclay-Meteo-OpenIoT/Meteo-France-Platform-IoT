@@ -4,11 +4,11 @@ from config import SENDER_EMAIL, SENDER_PASSWORD
 
 def send_personalized_email(email, name, station, stats_full, global_maps, station_charts):
     msg = EmailMessage()
-    msg['Subject'] = f"🚀 DASHBOARD MÉTÉO - {station}"
+    msg['Subject'] = f" DASHBOARD MÉTÉO - {station}"
     msg['From'] = SENDER_EMAIL
     msg['To'] = email
 
-    # 1. Calcul des moyennes journalières
+   
     avg_t = round(stats_full['t_pred'].mean(), 1)
     avg_f = round(stats_full['ff_pred'].mean(), 1)
     avg_r = round(stats_full['rr1_pred'].sum(), 1)
@@ -48,16 +48,16 @@ def send_personalized_email(email, name, station, stats_full, global_maps, stati
     """
     msg.set_content(html, subtype='html')
 
-    # Attachement des graphiques locaux
     for var, path in station_charts.items():
         with open(path, 'rb') as f:
             msg.add_attachment(f.read(), maintype='image', subtype='png', cid=f'chart_{var}')
 
-    # Attachement des cartes régionales
     for var, path in global_maps.items():
         with open(path, 'rb') as f:
             msg.add_attachment(f.read(), maintype='image', subtype='png', cid=f'map_{var}')
 
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
+
         smtp.send_message(msg)
+
