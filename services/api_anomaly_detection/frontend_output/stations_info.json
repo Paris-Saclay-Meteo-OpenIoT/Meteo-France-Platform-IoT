@@ -1,0 +1,837 @@
+{
+  "update_time": "2026-02-10T10:22:15.609078",
+  "total_stations": 55,
+  "stations": [
+    {
+      "station_id": "20004002",
+      "latitude": 41.918,
+      "longitude": 8.792667,
+      "altitude": 5.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20004003",
+      "latitude": 41.908333,
+      "longitude": 8.618167,
+      "altitude": 124.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI"
+      ]
+    },
+    {
+      "station_id": "20004014",
+      "latitude": 41.9385,
+      "longitude": 8.720833,
+      "altitude": 86.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20007402",
+      "latitude": 42.324333,
+      "longitude": 8.881667,
+      "altitude": 1971.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20023005",
+      "latitude": 42.403833,
+      "longitude": 8.922667,
+      "altitude": 1400.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20029003",
+      "latitude": 42.679833,
+      "longitude": 9.389333,
+      "altitude": 572.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20033015",
+      "latitude": 42.704333,
+      "longitude": 9.444833,
+      "altitude": 26.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20040001",
+      "latitude": 42.080167,
+      "longitude": 9.0525,
+      "altitude": 660.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20040004",
+      "latitude": 42.104167,
+      "longitude": 9.103333,
+      "altitude": 1019.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20041001",
+      "latitude": 41.374833,
+      "longitude": 9.178333,
+      "altitude": 107.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20046002",
+      "latitude": 42.886667,
+      "longitude": 9.4395,
+      "altitude": 278.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20047006",
+      "latitude": 42.3315,
+      "longitude": 9.0215,
+      "altitude": 811.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20050001",
+      "latitude": 42.5295,
+      "longitude": 8.7915,
+      "altitude": 57.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20054002",
+      "latitude": 42.494667,
+      "longitude": 9.353,
+      "altitude": 499.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20083001",
+      "latitude": 42.380167,
+      "longitude": 9.134167,
+      "altitude": 376.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20092001",
+      "latitude": 41.717,
+      "longitude": 9.3485,
+      "altitude": 253.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20093002",
+      "latitude": 42.633333,
+      "longitude": 8.9225,
+      "altitude": 140.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20096008",
+      "latitude": 42.2885,
+      "longitude": 9.193167,
+      "altitude": 350.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20096009",
+      "latitude": 42.229667,
+      "longitude": 9.031333,
+      "altitude": 1372.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20107001",
+      "latitude": 43.003833,
+      "longitude": 9.3595,
+      "altitude": 72.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20108002",
+      "latitude": 42.263333,
+      "longitude": 8.838667,
+      "altitude": 1030.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20114002",
+      "latitude": 41.505167,
+      "longitude": 9.103667,
+      "altitude": 20.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20126001",
+      "latitude": 42.2165,
+      "longitude": 9.369333,
+      "altitude": 685.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20135002",
+      "latitude": 41.992333,
+      "longitude": 9.305,
+      "altitude": 198.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20142001",
+      "latitude": 41.7035,
+      "longitude": 9.125833,
+      "altitude": 571.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20148001",
+      "latitude": 42.540667,
+      "longitude": 9.485167,
+      "altitude": 10.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20154001",
+      "latitude": 42.188833,
+      "longitude": 8.655333,
+      "altitude": 515.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20160001",
+      "latitude": 41.761667,
+      "longitude": 9.0165,
+      "altitude": 951.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20169007",
+      "latitude": 42.472667,
+      "longitude": 9.199833,
+      "altitude": 240.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20185003",
+      "latitude": 42.632333,
+      "longitude": 9.3205,
+      "altitude": 75.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20190002",
+      "latitude": 42.5295,
+      "longitude": 9.0165,
+      "altitude": 844.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20209003",
+      "latitude": 42.003167,
+      "longitude": 8.905667,
+      "altitude": 433.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20211001",
+      "latitude": 41.785167,
+      "longitude": 8.979167,
+      "altitude": 450.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20223001",
+      "latitude": 42.541,
+      "longitude": 9.172,
+      "altitude": 510.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20232002",
+      "latitude": 41.8145,
+      "longitude": 8.903667,
+      "altitude": 407.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20235001",
+      "latitude": 42.517833,
+      "longitude": 8.999833,
+      "altitude": 995.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20247001",
+      "latitude": 41.594833,
+      "longitude": 9.363167,
+      "altitude": 57.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI"
+      ]
+    },
+    {
+      "station_id": "20249003",
+      "latitude": 41.678167,
+      "longitude": 8.915,
+      "altitude": 34.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20254006",
+      "latitude": 41.777667,
+      "longitude": 9.142833,
+      "altitude": 932.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20255003",
+      "latitude": 42.426833,
+      "longitude": 9.332333,
+      "altitude": 997.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20258001",
+      "latitude": 42.190167,
+      "longitude": 8.807167,
+      "altitude": 755.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20264002",
+      "latitude": 42.364167,
+      "longitude": 9.2645,
+      "altitude": 860.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20268001",
+      "latitude": 41.943,
+      "longitude": 9.123,
+      "altitude": 837.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20270001",
+      "latitude": 42.0785,
+      "longitude": 8.802333,
+      "altitude": 407.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20272001",
+      "latitude": 41.620167,
+      "longitude": 8.962167,
+      "altitude": 272.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20272004",
+      "latitude": 41.652333,
+      "longitude": 8.979333,
+      "altitude": 62.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20273001",
+      "latitude": 42.429333,
+      "longitude": 9.412167,
+      "altitude": 185.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20281001",
+      "latitude": 42.798333,
+      "longitude": 9.488667,
+      "altitude": 111.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI"
+      ]
+    },
+    {
+      "station_id": "20303002",
+      "latitude": 42.259667,
+      "longitude": 9.5415,
+      "altitude": 65.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20312001",
+      "latitude": 41.879167,
+      "longitude": 8.989167,
+      "altitude": 541.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20314006",
+      "latitude": 42.635833,
+      "longitude": 9.200667,
+      "altitude": 484.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20326001",
+      "latitude": 41.9635,
+      "longitude": 8.959167,
+      "altitude": 698.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    },
+    {
+      "station_id": "20341400",
+      "latitude": 42.208333,
+      "longitude": 9.0485,
+      "altitude": 2379.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20342001",
+      "latitude": 41.921833,
+      "longitude": 9.400833,
+      "altitude": 12.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1",
+        "FF",
+        "FXI",
+        "TD",
+        "U"
+      ]
+    },
+    {
+      "station_id": "20354008",
+      "latitude": 42.152667,
+      "longitude": 9.149167,
+      "altitude": 773.0,
+      "has_anomaly": true,
+      "available_vars": [
+        "T",
+        "TN",
+        "TX",
+        "RR1"
+      ]
+    }
+  ]
+}

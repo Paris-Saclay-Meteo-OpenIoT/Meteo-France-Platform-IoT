@@ -43,15 +43,44 @@ export default function AlertPage() {
 
   // Mapping function to convert alert data to a common format
   const mapAlert = (alert) => {
+    
+    let uniqueKey = alert.key || alert.alert_key;
+
+    if (!uniqueKey || uniqueKey.includes('unknown') || uniqueKey.startsWith('DatasourceNoData')) {
+       const baseName = alert.labels?.alertname || alert.alert_name || 'alert';
+       const timestamp = alert.startsAt || alert.received_at || Date.now();
+       uniqueKey = `generated-${baseName}-${timestamp}-${Math.random().toString(36).substr(2, 5)}`;
+    }
+
+    const title = alert.annotations?.summary 
+                  || alert.alert_name 
+                  || alert.labels?.alertname 
+                  || "Sans titre";
+
+    const name = alert.labels?.container 
+                 || alert.labels?.name 
+                 || alert.container 
+                 || "Système";
+
+    const description = alert.annotations?.description 
+                        || alert.description 
+                        || "Pas de description";
+
+    const time = alert.startsAt || alert.received_at || new Date().toISOString();
+    
+    const category = alert.labels?.category 
+                      || alert.category
+                      || "system"; 
+
     return {
-      title: alert.annotations?.summary || "No title",
-      name: alert.labels?.container || alert.labels?.name || alert.labels?.id || "",
-      description: alert.annotations?.description || "No explanation",
-      time: alert.startsAt || new Date().toISOString(),
-      category: alert.labels?.category || "system",
+      title,
+      name,
+      description,
+      time,
+      category,
       status: alert.status || "active",
-      icon: alertTypeIcon[alert.labels?.category] || alertTypeIcon.system,
-      key: alert.key,
+      icon: alertTypeIcon[category] || alertTypeIcon.system,
+      key: uniqueKey, 
     };
   };
 
@@ -162,14 +191,18 @@ export default function AlertPage() {
     };
   }, [displayMode]);
 
-  // Filter alerts based on search term and category 
+// Filter alerts based on search term and category 
   const filteredAlerts = alerts.filter((alert) => {
+
     const term = searchTerm.toLowerCase();
     const matchesSearch =
       alert.title.toLowerCase().includes(term) ||
       alert.name.toLowerCase().includes(term) ||
       alert.description.toLowerCase().includes(term);
+
     const matchesCategory = filterCategory === "all" || alert.category === filterCategory;
+
+    // On garde l'alerte seulement si elle match la recherche ET la catégorie
     return matchesSearch && matchesCategory;
   });
 

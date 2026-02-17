@@ -1,0 +1,51 @@
+name: Pipeline CI/CD - Tests Globaux
+
+on:
+  push:
+    branches: [ "main"]
+  schedule:
+    - cron: '0 3 * * *' # Toutes les nuits à 3h00 UTC
+  workflow_dispatch: # Permet d'avoir un bouton pour le lancer manuellement sur GitHub 
+
+jobs:
+  test-infrastructure:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Cloner le repo du projet
+        uses: actions/checkout@v4
+
+      - name: On configure Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: On installe les dépendances Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r services/api_climatologique_producer/requirements.txt
+          pip install -r services/api_observations_producer/requirements.txt
+          pip install -r services/api_vigilance_producer/requirements.txt
+          pip install requests pymongo kafka-python
+
+      - name: Lancement de l'infrastructure Docker
+        run: |
+          docker compose up -d
+          
+      - name: Attente des données
+        # On laisse 2 minutes aux conteneurs pour démarrer
+        run: |
+          sleep 120
+          docker ps # Affiche les conteneurs pour vérifier qu'ils tournent bien
+
+      - name: Lancer le Scénario de Test Global
+        run: |
+          mkdir -p logs
+          python3 -u test_scenario.py | tee logs/rapport_github.log
+
+      - name: Sauvegarder le rapport de test
+        if: always() # S'assure qu'on sauvegarde le log MÊME si un test échoue !
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rapport-de-Tests-CI
+          path: logs/
