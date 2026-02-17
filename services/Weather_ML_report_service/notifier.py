@@ -4,7 +4,7 @@ from config import SENDER_EMAIL, SENDER_PASSWORD
 
 def send_personalized_email(email, name, station, stats_full, global_maps, station_charts):
     msg = EmailMessage()
-    msg['Subject'] = f"🚀 DASHBOARD MÉTÉO - {station}"
+    msg['Subject'] = f" DASHBOARD MÉTÉO - {station}"
     msg['From'] = SENDER_EMAIL
     msg['To'] = email
 
@@ -60,3 +60,4 @@ def send_personalized_email(email, name, station, stats_full, global_maps, stati
         smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
 
         smtp.send_message(msg)
+
